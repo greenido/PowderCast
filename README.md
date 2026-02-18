@@ -66,7 +66,61 @@ yarn dev
 
 The app will be available at **http://localhost:3000**
 
-## 🛠️ Tech Stack
+## � Deployment to GitHub Pages
+
+### Automatic Deployment
+
+This project includes a GitHub Actions workflow that automatically deploys to GitHub Pages on every push to the `main` branch.
+
+### Setup Instructions
+
+1. **Push your code to GitHub**:
+   ```bash
+   git init
+   git add .
+   git commit -m "Initial commit"
+   git branch -M main
+   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
+   git push -u origin main
+   ```
+
+2. **Enable GitHub Pages**:
+   - Go to your repository on GitHub
+   - Navigate to **Settings → Pages**
+   - Under **Source**, select **GitHub Actions**
+
+3. **Trigger deployment**:
+   - The workflow will run automatically on push to `main`
+   - Or manually trigger it from **Actions** tab → **Deploy to GitHub Pages** → **Run workflow**
+
+4. **Access your site**:
+   - Your site will be available at: `https://YOUR_USERNAME.github.io/YOUR_REPO_NAME/`
+   - Wait 2-3 minutes for the first deployment to complete
+
+### Manual Deployment
+
+To build and deploy manually:
+
+```bash
+# Build static export
+yarn build
+
+# The output will be in the ./out directory
+# Upload contents to your hosting provider
+```
+
+### Important Notes
+
+- **API Routes**: GitHub Pages is static-only. API routes (`/api/*`) won't work in production. Consider using:
+  - API routes on Vercel/Netlify for backend
+  - Client-side fetching directly from NWS API
+  - Serverless functions on alternative platforms
+
+- **Database**: The SQLite database is included in the build, but data updates require rebuilding
+
+- **basePath**: The workflow automatically handles the base path for repository-based GitHub Pages
+
+## �🛠️ Tech Stack
 
 | Technology | Purpose |
 |------------|---------|
