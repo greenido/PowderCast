@@ -42,7 +42,8 @@ Temperature-based snow quality predictions:
 
 ### Prerequisites
 
-- Node.js 18+ and Yarn
+- Node.js 20.19+ or 22.13+ (recommended: 22.13+) and Yarn
+- NVM (Node Version Manager) - [Install instructions](https://github.com/nvm-sh/nvm#installing-and-updating)
 - macOS/Linux (or Windows with WSL)
 
 ### Installation
@@ -50,6 +51,12 @@ Temperature-based snow quality predictions:
 ```bash
 # Navigate to project directory
 cd /Applications/MAMP/htdocs/weather-snow-1
+
+# Switch to the correct Node version (uses .nvmrc)
+nvm use
+
+# If not installed, install Node 22.13.0
+# nvm install 22.13.0
 
 # Install dependencies
 yarn install

@@ -2,6 +2,10 @@
   "name": "powdercast",
   "version": "1.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0",
+    "yarn": ">=1.22.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
