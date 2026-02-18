@@ -5,6 +5,23 @@ export function useResortSearch(query: string) {
   const [resorts, setResorts] = useState<Resort[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [allResorts, setAllResorts] = useState<Resort[]>([]);
+
+  // Load all resorts once
+  useEffect(() => {
+    const loadResorts = async () => {
+      try {
+        const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+        const response = await fetch(`${basePath}/resorts.json`);
+        if (!response.ok) throw new Error('Failed to load resorts');
+        const data = await response.json();
+        setAllResorts(data);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Unknown error');
+      }
+    };
+    loadResorts();
+  }, []);
 
   useEffect(() => {
     if (!query || query.length < 2) {
@@ -12,16 +29,19 @@ export function useResortSearch(query: string) {
       return;
     }
 
-    const searchResorts = async () => {
+    const searchResorts = () => {
       setLoading(true);
       setError(null);
 
       try {
-        const response = await fetch(`/api/resorts?q=${encodeURIComponent(query)}`);
-        if (!response.ok) throw new Error('Failed to search resorts');
-        
-        const data = await response.json();
-        setResorts(data);
+        const q = query.toLowerCase();
+        const filtered = allResorts.filter(
+          (resort) =>
+            resort.name.toLowerCase().includes(q) ||
+            resort.state.toLowerCase().includes(q) ||
+            resort.region.toLowerCase().includes(q)
+        );
+        setResorts(filtered.slice(0, 10)); // Limit results
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
         setResorts([]);
@@ -33,7 +53,7 @@ export function useResortSearch(query: string) {
     // Debounce search
     const timeoutId = setTimeout(searchResorts, 300);
     return () => clearTimeout(timeoutId);
-  }, [query]);
+  }, [query, allResorts]);
 
   return { resorts, loading, error };
 }
@@ -54,11 +74,18 @@ export function useResort(resortId: string | null) {
       setError(null);
 
       try {
-        const response = await fetch(`/api/resorts?id=${resortId}`);
-        if (!response.ok) throw new Error('Failed to fetch resort');
+        const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+        const response = await fetch(`${basePath}/resorts.json`);
+        if (!response.ok) throw new Error('Failed to load resorts');
         
-        const data = await response.json();
-        setResort(data);
+        const allResorts: Resort[] = await response.json();
+        const foundResort = allResorts.find((r) => r.id === resortId);
+        
+        if (!foundResort) {
+          throw new Error('Resort not found');
+        }
+        
+        setResort(foundResort);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error');
         setResort(null);

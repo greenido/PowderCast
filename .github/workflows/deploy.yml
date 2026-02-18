@@ -36,6 +36,9 @@ jobs:
       - name: Seed resort data
         run: yarn db:seed
 
+      - name: Generate static resorts JSON
+        run: yarn generate:resorts
+
       - name: Build Next.js static export
         run: yarn build
         env:

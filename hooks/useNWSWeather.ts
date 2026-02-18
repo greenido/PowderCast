@@ -29,10 +29,59 @@ export function useNWSWeather(lat: number | null, lon: number | null) {
     setError(null);
 
     try {
-      const response = await fetch(`/api/weather?lat=${lat}&lon=${lon}`);
-      if (!response.ok) throw new Error('Failed to fetch weather data');
+      // Fetch directly from NWS API (supports CORS)
+      const NWS_API_BASE = 'https://api.weather.gov';
+      const USER_AGENT = 'PowderCast/1.1 (contact@powdercast.app)';
 
-      const data: WeatherData = await response.json();
+      // Step 1: Get the point data
+      const pointResponse = await fetch(
+        `${NWS_API_BASE}/points/${lat},${lon}`,
+        {
+          headers: {
+            'User-Agent': USER_AGENT,
+            'Accept': 'application/geo+json',
+          },
+        }
+      );
+
+      if (!pointResponse.ok) {
+        throw new Error(`NWS API error: ${pointResponse.status}`);
+      }
+
+      const pointData = await pointResponse.json();
+      const forecastUrl = pointData.properties.forecast;
+      const gridDataUrl = pointData.properties.forecastGridData;
+      const location = {
+        city: pointData.properties.relativeLocation?.properties?.city || 'Unknown',
+        state: pointData.properties.relativeLocation?.properties?.state || 'Unknown',
+      };
+
+      // Step 2: Fetch forecast and grid data in parallel
+      const [forecastResponse, gridDataResponse] = await Promise.all([
+        fetch(forecastUrl, {
+          headers: {
+            'User-Agent': USER_AGENT,
+            'Accept': 'application/geo+json',
+          },
+        }),
+        fetch(gridDataUrl, {
+          headers: {
+            'User-Agent': USER_AGENT,
+            'Accept': 'application/geo+json',
+          },
+        }),
+      ]);
+
+      if (!forecastResponse.ok || !gridDataResponse.ok) {
+        throw new Error('Failed to fetch weather data');
+      }
+
+      const [forecast, gridData] = await Promise.all([
+        forecastResponse.json(),
+        gridDataResponse.json(),
+      ]);
+
+      const data: WeatherData = { forecast, gridData, location };
       const processed = processWeatherData(data);
       setWeatherData(processed);
       
