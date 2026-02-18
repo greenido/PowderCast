@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-950 text-white antialiased;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-white/10 backdrop-blur-md border border-white/20 rounded-xl p-4 sm:p-6 shadow-xl;
+  }
+  
+  .glass-card-hover {
+    @apply glass-card hover:bg-white/20 transition-all duration-300 cursor-pointer;
+  }
+  
+  .metric-large {
+    @apply text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight;
+  }
+  
+  .metric-label {
+    @apply text-xs sm:text-sm text-cyan-400 uppercase tracking-wider font-semibold;
+  }
+}
