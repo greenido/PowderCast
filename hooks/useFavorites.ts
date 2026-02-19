@@ -9,9 +9,17 @@ const FAVORITES_KEY = 'powdercast-favorites';
  */
 export function useFavorites(allResorts: Resort[] = []) {
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  const [isClient, setIsClient] = useState(false);
+
+  // Set client flag on mount to prevent SSR issues
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   // Load favorites from localStorage on mount
   useEffect(() => {
+    if (!isClient) return;
+    
     try {
       const stored = localStorage.getItem(FAVORITES_KEY);
       if (stored) {
@@ -21,10 +29,12 @@ export function useFavorites(allResorts: Resort[] = []) {
     } catch (error) {
       console.error('Failed to load favorites:', error);
     }
-  }, []);
+  }, [isClient]);
 
   // Save favorites to localStorage whenever they change
   const saveFavorites = useCallback((ids: Set<string>) => {
+    if (typeof window === 'undefined') return;
+    
     try {
       localStorage.setItem(FAVORITES_KEY, JSON.stringify(Array.from(ids)));
     } catch (error) {

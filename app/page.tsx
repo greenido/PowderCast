@@ -27,7 +27,8 @@ export default function Home() {
 
   // Load all resorts for favorites functionality
   useEffect(() => {
-    fetch('/resorts.json')
+    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+    fetch(`${basePath}/resorts.json`)
       .then((res) => res.json())
       .then((data) => setAllResorts(data))
       .catch((err) => console.error('Failed to load resorts:', err));
