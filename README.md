@@ -4,7 +4,7 @@
   <img src="./public/logo.svg" alt="PowderCast Logo" width="200" height="200"/>
 </p>
 
-**The Ultimate Snowboarder's Weather Dashboard**
+**The Ultimate Snowboarder's Weather App**
 
 🚀 Try it: [PowderCast](https://greenido.github.io/PowderCast/)
 
