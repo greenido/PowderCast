@@ -119,4 +119,16 @@ export interface ProcessedWeatherData {
   
   // Temperature during precipitation
   precipTemp: number | null;
+  
+  // Hourly snow forecast
+  hourlySnowForecast: HourlySnowData[];
+}
+
+export interface HourlySnowData {
+  time: string; // ISO timestamp
+  hour: number; // Hour of day (0-23)
+  snowfall: number; // Inches
+  temperature: number; // Fahrenheit
+  windSpeed: number; // mph
+  snowQuality: string;
 }

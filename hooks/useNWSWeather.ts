@@ -2,7 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import type { 
   WeatherData, 
   ProcessedWeatherData, 
-  NWSGridDataValue 
+  NWSGridDataValue,
+  HourlySnowData
 } from '@/lib/nwsTypes';
 import { 
   cmToInches, 
@@ -171,6 +172,13 @@ const avgWindSpeed = getAverageValue(
   const frostbiteRisk = hasFrostbiteRisk(windChill);
   const windHoldRisk = hasWindHoldRisk(maxWindGust24h);
 
+  // Process hourly snow forecast (next 48 hours)
+  const hourlySnowForecast = processHourlySnowForecast(
+    snowValues,
+    tempValues,
+    gridData.properties.windSpeed?.values || []
+  );
+
   return {
     currentTemp,
     currentWindSpeed,
@@ -189,6 +197,7 @@ const avgWindSpeed = getAverageValue(
     bluebirdDay,
     powderAlert,
     precipTemp,
+    hourlySnowForecast,
   };
 }
 
@@ -248,4 +257,83 @@ function getAverageValue(
 
   if (relevantValues.length === 0) return 0;
   return relevantValues.reduce((a, b) => a + b, 0) / relevantValues.length;
+}
+
+function processHourlySnowForecast(
+  snowValues: NWSGridDataValue[],
+  tempValues: NWSGridDataValue[],
+  windValues: NWSGridDataValue[]
+): HourlySnowData[] {
+  const now = Date.now();
+  const hourlyData: HourlySnowData[] = [];
+  const hours = 48; // Next 48 hours
+
+  // Group data by hour
+  for (let i = 0; i < hours; i++) {
+    const hourStart = now + (i * 3600000);
+    const hourEnd = hourStart + 3600000;
+    
+    // Find snow data for this hour
+    let hourlySnow = 0;
+    for (const val of snowValues) {
+      const time = new Date(val.validTime.split('/')[0]).getTime();
+      const duration = parseDuration(val.validTime);
+      const timeEnd = time + duration;
+      
+      if (time >= hourStart && time < hourEnd && val.value) {
+        hourlySnow += cmToInches(val.value);
+      }
+    }
+    
+    // Find temperature for this hour
+    let hourlyTemp = 32; // default
+    for (const val of tempValues) {
+      const time = new Date(val.validTime.split('/')[0]).getTime();
+      if (time >= hourStart && time < hourEnd && val.value !== null) {
+        // Convert from Celsius to Fahrenheit
+        hourlyTemp = (val.value * 9/5) + 32;
+        break;
+      }
+    }
+    
+    // Find wind speed for this hour
+    let hourlyWind = 0;
+    for (const val of windValues) {
+      const time = new Date(val.validTime.split('/')[0]).getTime();
+      if (time >= hourStart && time < hourEnd && val.value !== null) {
+        // Convert from km/h to mph
+        hourlyWind = val.value * 0.621371;
+        break;
+      }
+    }
+    
+    // Only include hours with snowfall or first 24 hours
+    if (hourlySnow > 0 || i < 24) {
+      const date = new Date(hourStart);
+      hourlyData.push({
+        time: date.toISOString(),
+        hour: date.getHours(),
+        snowfall: parseFloat(hourlySnow.toFixed(2)),
+        temperature: Math.round(hourlyTemp),
+        windSpeed: Math.round(hourlyWind),
+        snowQuality: determineSnowQuality(hourlyTemp),
+      });
+    }
+  }
+
+  return hourlyData;
+}
+
+function parseDuration(validTime: string): number {
+  // NWS format: "2024-01-01T12:00:00+00:00/PT1H" or similar
+  const parts = validTime.split('/');
+  if (parts.length < 2) return 3600000; // default 1 hour
+  
+  const duration = parts[1];
+  const hourMatch = duration.match(/PT(\d+)H/);
+  if (hourMatch) {
+    return parseInt(hourMatch[1]) * 3600000;
+  }
+  
+  return 3600000; // default 1 hour
 }

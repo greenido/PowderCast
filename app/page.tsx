@@ -11,6 +11,7 @@ import PowderAlert from '@/components/PowderAlert';
 import BluebirdIndicator from '@/components/BluebirdIndicator';
 import FrostbiteWarning from '@/components/FrostbiteWarning';
 import WebcamViewer from '@/components/WebcamViewer';
+import HourlySnowForecast from '@/components/HourlySnowForecast';
 import { useNWSWeather } from '@/hooks/useNWSWeather';
 import type { Resort } from '@/lib/database';
 
@@ -157,6 +158,9 @@ export default function Home() {
                     shortForecast={weatherData.periods[0]?.shortForecast || 'N/A'}
                   />
                 </div>
+
+                {/* Hourly Snow Forecast */}
+                <HourlySnowForecast hourlyData={weatherData.hourlySnowForecast} />
 
                 {/* Snow Quality & Webcams */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
