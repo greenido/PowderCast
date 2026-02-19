@@ -12,6 +12,7 @@ import BluebirdIndicator from '@/components/BluebirdIndicator';
 import FrostbiteWarning from '@/components/FrostbiteWarning';
 import WebcamViewer from '@/components/WebcamViewer';
 import HourlySnowForecast from '@/components/HourlySnowForecast';
+import InstallPWA from '@/components/InstallPWA';
 import { useNWSWeather } from '@/hooks/useNWSWeather';
 import type { Resort } from '@/lib/database';
 
@@ -64,7 +65,10 @@ export default function Home() {
               including snow quality predictions, wind hold alerts, and rider intelligence.
             </p>
             <div className="mt-6 sm:mt-8 text-xs sm:text-sm text-gray-500 px-4">
-              Powered by the National Weather Service API • Covering 22+ major US resorts
+              Powered by the National Weather Service API • Covering 22+ major US resorts • Made by{' '}
+              <a href="https://greenido.wordpress.com" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">
+                @greenido
+              </a>
             </div>
           </div>
         )}  
@@ -216,6 +220,9 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {/* PWA Install Prompt */}
+      <InstallPWA />
     </main>
   );
 }

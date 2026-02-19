@@ -25,3 +25,21 @@
     @apply text-xs sm:text-sm text-cyan-400 uppercase tracking-wider font-semibold;
   }
 }
+
+@layer utilities {
+  @keyframes slide-up {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+  
+  .animate-slide-up {
+    animation: slide-up 0.5s ease-out;
+  }
+}
+
