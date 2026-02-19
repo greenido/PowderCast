@@ -64,7 +64,7 @@ export default function HourlySnowForecast({ hourlyData }: HourlySnowForecastPro
               >
                 {/* Snowfall amount */}
                 <div className="text-base sm:text-lg font-bold text-cyan-400 mb-1">
-                  {hour.snowfall.toFixed(1)}"
+                  {hour.snowfall.toFixed(1)}&quot;
                 </div>
                 
                 {/* Visual bar */}
