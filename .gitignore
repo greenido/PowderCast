@@ -38,3 +38,4 @@ next-env.d.ts
 *.db
 *.db-journal
 powdercast.db
+blog-post-1.md
