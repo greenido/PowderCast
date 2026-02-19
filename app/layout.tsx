@@ -9,6 +9,13 @@ export const metadata: Metadata = {
   description: "Hyper-local mountain weather data for US snowboarders. Get real-time snow quality, wind holds, and rider intelligence.",
   keywords: "snowboard, weather, ski resort, powder, snow forecast, mountain weather",
   viewport: "width=device-width, initial-scale=1, maximum-scale=5",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: "/logo.svg",
+  },
 };
 
 export default function RootLayout({

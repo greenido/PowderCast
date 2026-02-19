@@ -1,0 +1,39 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="100" cy="100" r="95" fill="#0F172A" stroke="#22D3EE" stroke-width="4"/>
+  
+  <!-- Mountain peaks -->
+  <path d="M 40 140 L 70 90 L 85 110 L 100 80 L 130 110 L 160 140 Z" 
+        fill="#475569" stroke="#22D3EE" stroke-width="2"/>
+  
+  <!-- Front mountain peak -->
+  <path d="M 60 140 L 100 70 L 140 140 Z" 
+        fill="#64748B" stroke="#22D3EE" stroke-width="2"/>
+  
+  <!-- Snowflake icon -->
+  <g transform="translate(100, 45)">
+    <!-- Center circle -->
+    <circle cx="0" cy="0" r="3" fill="#22D3EE"/>
+    
+    <!-- Main axes -->
+    <line x1="0" y1="-15" x2="0" y2="15" stroke="#22D3EE" stroke-width="2.5"/>
+    <line x1="-13" y1="-7.5" x2="13" y2="7.5" stroke="#22D3EE" stroke-width="2.5"/>
+    <line x1="-13" y1="7.5" x2="13" y2="-7.5" stroke="#22D3EE" stroke-width="2.5"/>
+    
+    <!-- Branch tips -->
+    <circle cx="0" cy="-15" r="2" fill="#FFFFFF"/>
+    <circle cx="0" cy="15" r="2" fill="#FFFFFF"/>
+    <circle cx="-13" cy="-7.5" r="2" fill="#FFFFFF"/>
+    <circle cx="13" cy="7.5" r="2" fill="#FFFFFF"/>
+    <circle cx="-13" cy="7.5" r="2" fill="#FFFFFF"/>
+    <circle cx="13" cy="-7.5" r="2" fill="#FFFFFF"/>
+    
+    <!-- Small branches -->
+    <line x1="-3" y1="-12" x2="3" y2="-12" stroke="#22D3EE" stroke-width="1.5"/>
+    <line x1="-3" y1="12" x2="3" y2="12" stroke="#22D3EE" stroke-width="1.5"/>
+  </g>
+  
+  <!-- "PC" Text -->
+  <text x="100" y="165" font-family="Arial, sans-serif" font-size="36" font-weight="bold" 
+        fill="#22D3EE" text-anchor="middle">PC</text>
+</svg>

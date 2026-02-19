@@ -1,6 +1,12 @@
 # 🏂 PowderCast v1.1
 
+<p align="center">
+  <img src="./public/logo.svg" alt="PowderCast Logo" width="200" height="200"/>
+</p>
+
 **The Ultimate Snowboarder's Weather Dashboard**
+
+🚀 Try it: [PowderCast](https://greenido.github.io/PowderCast/)
 
 A high-performance web application for US-based snowboarders that leverages the National Weather Service (NWS) API to deliver hyper-local mountain weather data.
 
@@ -316,3 +322,9 @@ This project is for educational purposes. Weather data provided by the National 
 **Built with ❄️ by riders, for riders.**
 
 *PowderCast v1.1 - Because every startup gets one miracle, and it's not the UI stack.*
+
+---
+
+<p align="center">
+  Made by <a href="https://greenido.wordpress.com">@greenido</a>
+</p>
