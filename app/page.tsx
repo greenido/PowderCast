@@ -41,7 +41,7 @@ export default function Home() {
             🏂 PowderCast
           </h1>
           <p className="text-base sm:text-lg md:text-xl text-gray-400 px-4">
-            The Ultimate Snowboarder&apos;s Weather Dashboard
+            The Ultimate Snowboarder&apos;s Weather App
           </p>
         </div>
 
