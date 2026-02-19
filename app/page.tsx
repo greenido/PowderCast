@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SearchBar from '@/components/SearchBar';
 import ElevationToggle from '@/components/ElevationToggle';
 import SnowAccumulationCard from '@/components/SnowAccumulationCard';
@@ -13,12 +13,27 @@ import FrostbiteWarning from '@/components/FrostbiteWarning';
 import WebcamViewer from '@/components/WebcamViewer';
 import HourlySnowForecast from '@/components/HourlySnowForecast';
 import InstallPWA from '@/components/InstallPWA';
+import FavoritesList from '@/components/FavoritesList';
 import { useNWSWeather } from '@/hooks/useNWSWeather';
+import { useFavorites } from '@/hooks/useFavorites';
 import type { Resort } from '@/lib/database';
+import { StarIcon } from '@heroicons/react/24/solid';
 
 export default function Home() {
   const [selectedResort, setSelectedResort] = useState<Resort | null>(null);
   const [elevation, setElevation] = useState<'base' | 'summit'>('base');
+  const [allResorts, setAllResorts] = useState<Resort[]>([]);
+  const [showFavorites, setShowFavorites] = useState(false);
+
+  // Load all resorts for favorites functionality
+  useEffect(() => {
+    fetch('/resorts.json')
+      .then((res) => res.json())
+      .then((data) => setAllResorts(data))
+      .catch((err) => console.error('Failed to load resorts:', err));
+  }, []);
+
+  const { favorites, toggleFavorite, isFavorite, hasFavorites } = useFavorites(allResorts);
 
   const lat = selectedResort
     ? elevation === 'base'
@@ -45,6 +60,20 @@ export default function Home() {
           <p className="text-base sm:text-lg md:text-xl text-gray-400 px-4">
             The Ultimate Snowboarder&apos;s Weather App
           </p>
+          
+          {/* Favorites Button */}
+          {hasFavorites && (
+            <div className="mt-4">
+              <button
+                onClick={() => setShowFavorites(true)}
+                className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 hover:from-yellow-500/30 hover:to-yellow-600/30 border border-yellow-400/30 rounded-lg transition-all text-sm sm:text-base"
+              >
+                <StarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+                <span className="font-semibold text-yellow-400">My Favorites</span>
+                <span className="text-xs text-gray-400">({favorites.length})</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Search Bar */}
@@ -52,6 +81,8 @@ export default function Home() {
           <SearchBar
             onSelectResort={setSelectedResort}
             selectedResort={selectedResort}
+            isFavorite={isFavorite}
+            onToggleFavorite={toggleFavorite}
           />
         </div>
 
@@ -78,10 +109,23 @@ export default function Home() {
             {/* Resort Header */}
             <div className="glass-card">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-2xl sm:text-3xl font-bold text-cyan-400 mb-2">
-                    {selectedResort.name}
-                  </h2>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 sm:gap-3 mb-2">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-cyan-400">
+                      {selectedResort.name}
+                    </h2>
+                    <button
+                      onClick={() => toggleFavorite(selectedResort.id)}
+                      className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                      aria-label={isFavorite(selectedResort.id) ? 'Remove from favorites' : 'Add to favorites'}
+                    >
+                      <StarIcon 
+                        className={`w-5 h-5 sm:w-6 sm:h-6 ${
+                          isFavorite(selectedResort.id) ? 'text-yellow-400' : 'text-gray-600'
+                        }`}
+                      />
+                    </button>
+                  </div>
                   <p className="text-sm sm:text-base text-gray-400">
                     {selectedResort.region}, {selectedResort.state}
                   </p>
@@ -223,6 +267,15 @@ export default function Home() {
 
       {/* PWA Install Prompt */}
       <InstallPWA />
+
+      {/* Favorites List Modal */}
+      <FavoritesList
+        favorites={favorites}
+        onSelectResort={setSelectedResort}
+        onRemoveFavorite={toggleFavorite}
+        isOpen={showFavorites}
+        onClose={() => setShowFavorites(false)}
+      />
     </main>
   );
 }

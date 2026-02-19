@@ -3,15 +3,24 @@
 import { Fragment, useState } from 'react';
 import { Combobox, Transition } from '@headlessui/react';
 import { MagnifyingGlassIcon, MapPinIcon } from '@heroicons/react/24/outline';
+import { StarIcon as StarIconOutline } from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { useResortSearch } from '@/hooks/useResortSearch';
 import type { Resort } from '@/lib/database';
 
 interface SearchBarProps {
   onSelectResort: (resort: Resort | null) => void;
   selectedResort: Resort | null;
+  isFavorite?: (resortId: string) => boolean;
+  onToggleFavorite?: (resortId: string) => void;
 }
 
-export default function SearchBar({ onSelectResort, selectedResort }: SearchBarProps) {
+export default function SearchBar({ 
+  onSelectResort, 
+  selectedResort,
+  isFavorite,
+  onToggleFavorite,
+}: SearchBarProps) {
   const [query, setQuery] = useState('');
   const { resorts, loading } = useResortSearch(query);
 
@@ -67,6 +76,23 @@ export default function SearchBar({ onSelectResort, selectedResort }: SearchBarP
                           {resort.region}, {resort.state} • Base: {resort.base_elevation}ft • Summit: {resort.summit_elevation}ft
                         </div>
                       </div>
+                      {onToggleFavorite && isFavorite && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            onToggleFavorite(resort.id);
+                          }}
+                          className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+                          aria-label={isFavorite(resort.id) ? 'Remove from favorites' : 'Add to favorites'}
+                        >
+                          {isFavorite(resort.id) ? (
+                            <StarIconSolid className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+                          ) : (
+                            <StarIconOutline className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 hover:text-yellow-400" />
+                          )}
+                        </button>
+                      )}
                     </div>
                   )}
                 </Combobox.Option>
