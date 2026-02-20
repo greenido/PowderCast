@@ -17,21 +17,21 @@ export default function SnowAccumulationCard({ snow24h, snow7day }: SnowAccumula
         </div>
         
         <div className="flex-1 min-w-0">
-          <div className="metric-label mb-2">Snow Accumulation</div>
+          <div className="metric-label mb-2">Snow Forecast</div>
           
           <div className="grid grid-cols-2 gap-3 sm:gap-6">
             <div>
               <div className="metric-large text-cyan-400">
                 {formatSnow(snow24h)}
               </div>
-              <div className="text-xs sm:text-sm text-gray-400 mt-1">Last 24 Hours</div>
+              <div className="text-xs sm:text-sm text-gray-400 mt-1">Next 24 Hours</div>
             </div>
             
             <div>
               <div className="metric-large text-cyan-300">
                 {formatSnow(snow7day)}
               </div>
-              <div className="text-xs sm:text-sm text-gray-400 mt-1">7-Day Total</div>
+              <div className="text-xs sm:text-sm text-gray-400 mt-1">Next 7 Days</div>
             </div>
           </div>
         </div>

@@ -97,29 +97,32 @@ export interface ProcessedWeatherData {
   currentWindGust: number;
   currentVisibility: number;
   currentSkyCover: number;
-  
+
   // Snow accumulation
   snow24h: number;
   snow7day: number;
-  
+
   // Wind data
   maxWindGust24h: number;
   maxWindGust7day: number;
   avgWindSpeed: number;
-  
+
   // Forecast periods
   periods: NWSForecastPeriod[];
-  
+
   // Calculated metrics
   snowQuality: string;
   windHoldRisk: boolean;
   frostbiteRisk: boolean;
   bluebirdDay: boolean;
   powderAlert: boolean;
-  
+
   // Temperature during precipitation
   precipTemp: number | null;
-  
+
+  // Gridpoint URL for Pro View
+  gridDataUrl: string;
+
   // Hourly snow forecast
   hourlySnowForecast: HourlySnowData[];
 }

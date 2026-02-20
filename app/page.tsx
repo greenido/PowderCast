@@ -12,18 +12,21 @@ import BluebirdIndicator from '@/components/BluebirdIndicator';
 import FrostbiteWarning from '@/components/FrostbiteWarning';
 import WebcamViewer from '@/components/WebcamViewer';
 import HourlySnowForecast from '@/components/HourlySnowForecast';
+import FutureSnowWidget from '@/components/FutureSnowWidget';
 import InstallPWA from '@/components/InstallPWA';
 import FavoritesList from '@/components/FavoritesList';
+import ProView from '@/components/ProView';
 import { useNWSWeather } from '@/hooks/useNWSWeather';
 import { useFavorites } from '@/hooks/useFavorites';
 import type { Resort } from '@/lib/database';
-import { StarIcon } from '@heroicons/react/24/solid';
+import { StarIcon, BeakerIcon } from '@heroicons/react/24/solid';
 
 export default function Home() {
   const [selectedResort, setSelectedResort] = useState<Resort | null>(null);
   const [elevation, setElevation] = useState<'base' | 'summit'>('base');
   const [allResorts, setAllResorts] = useState<Resort[]>([]);
   const [showFavorites, setShowFavorites] = useState(false);
+  const [showProView, setShowProView] = useState(false);
 
   // Load all resorts for favorites functionality
   useEffect(() => {
@@ -155,6 +158,22 @@ export default function Home() {
               summitElevation={selectedResort.summit_elevation}
             />
 
+            {/* Pro View Toggle */}
+            <div className="flex justify-center">
+              <button
+                onClick={() => setShowProView(!showProView)}
+                className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
+                  showProView
+                    ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white'
+                    : 'bg-white/10 hover:bg-white/20 border border-white/20'
+                }`}
+              >
+                <BeakerIcon className="w-5 h-5" />
+                <span>{showProView ? 'Hide Pro View' : 'Show Pro View'}</span>
+                <span className="text-xs opacity-75">(All Data)</span>
+              </button>
+            </div>
+
             {/* Loading State */}
             {loading && (
               <div className="glass-card text-center py-12">
@@ -175,81 +194,90 @@ export default function Home() {
             {/* Weather Data */}
             {weatherData && (
               <>
-                {/* Special Alerts */}
-                <div className="space-y-4">
-                  <PowderAlert snow24h={weatherData.snow24h} />
-                  <BluebirdIndicator
-                    isBluebird={weatherData.bluebirdDay}
-                    skyCover={weatherData.currentSkyCover}
-                    windSpeed={weatherData.currentWindSpeed}
-                  />
-                  <FrostbiteWarning
-                    temperature={weatherData.currentTemp}
-                    windSpeed={weatherData.currentWindSpeed}
-                  />
-                </div>
+                {showProView ? (
+                  <ProView gridpointUrl={weatherData.gridDataUrl} />
+                ) : (
+                  <>
+                    {/* Special Alerts */}
+                    <div className="space-y-4">
+                      <PowderAlert snow24h={weatherData.snow24h} />
+                      <BluebirdIndicator
+                        isBluebird={weatherData.bluebirdDay}
+                        skyCover={weatherData.currentSkyCover}
+                        windSpeed={weatherData.currentWindSpeed}
+                      />
+                      <FrostbiteWarning
+                        temperature={weatherData.currentTemp}
+                        windSpeed={weatherData.currentWindSpeed}
+                      />
+                    </div>
 
-                {/* The Big Three */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <SnowAccumulationCard
-                    snow24h={weatherData.snow24h}
-                    snow7day={weatherData.snow7day}
-                  />
-                  <WindGustsCard
-                    currentWindSpeed={weatherData.currentWindSpeed}
-                    currentWindGust={weatherData.currentWindGust}
-                    maxWindGust24h={weatherData.maxWindGust24h}
-                    maxWindGust7day={weatherData.maxWindGust7day}
-                  />
-                  <VisibilityCard
-                    visibility={weatherData.currentVisibility}
-                    skyCover={weatherData.currentSkyCover}
-                    shortForecast={weatherData.periods[0]?.shortForecast || 'N/A'}
-                  />
-                </div>
+                    {/* The Big Three */}
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                      <SnowAccumulationCard
+                        snow24h={weatherData.snow24h}
+                        snow7day={weatherData.snow7day}
+                      />
+                      <WindGustsCard
+                        currentWindSpeed={weatherData.currentWindSpeed}
+                        currentWindGust={weatherData.currentWindGust}
+                        maxWindGust24h={weatherData.maxWindGust24h}
+                        maxWindGust7day={weatherData.maxWindGust7day}
+                      />
+                      <VisibilityCard
+                        visibility={weatherData.currentVisibility}
+                        skyCover={weatherData.currentSkyCover}
+                        shortForecast={weatherData.periods[0]?.shortForecast || 'N/A'}
+                      />
+                    </div>
 
-                {/* Hourly Snow Forecast */}
-                <HourlySnowForecast hourlyData={weatherData.hourlySnowForecast} />
+                    {/* Hourly Snow Forecast */}
+                    <HourlySnowForecast hourlyData={weatherData.hourlySnowForecast} />
 
-                {/* Snow Quality & Webcams */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <SnowQualityTag
-                    quality={weatherData.snowQuality as any}
-                    temperature={weatherData.precipTemp}
-                  />
-                  <WebcamViewer
-                    webcamUrl={selectedResort.webcam_url}
-                    resortName={selectedResort.name}
-                  />
-                </div>
+                    {/* Future Snow Widget */}
+                    <FutureSnowWidget hourlyData={weatherData.hourlySnowForecast} />
 
-                {/* 7-Day Forecast */}
-                <div className="glass-card">
-                  <h3 className="metric-label mb-4 sm:mb-6">7-Day Forecast</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                    {weatherData.periods.slice(0, 7).map((period) => (
-                      <div
-                        key={period.number}
-                        className="bg-white/5 border border-white/10 rounded-lg p-3 sm:p-4 hover:bg-white/10 transition-all"
-                      >
-                        <div className="font-semibold text-base sm:text-lg mb-2 text-cyan-400">
-                          {period.name}
-                        </div>
-                        <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-                          <div className="text-2xl sm:text-3xl font-bold">
-                            {period.temperature}°
+                    {/* Snow Quality & Webcams */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <SnowQualityTag
+                        quality={weatherData.snowQuality as any}
+                        temperature={weatherData.precipTemp}
+                      />
+                      <WebcamViewer
+                        webcamUrl={selectedResort.webcam_url}
+                        resortName={selectedResort.name}
+                      />
+                    </div>
+
+                    {/* 7-Day Forecast */}
+                    <div className="glass-card">
+                      <h3 className="metric-label mb-4 sm:mb-6">7-Day Forecast</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                        {weatherData.periods.slice(0, 7).map((period) => (
+                          <div
+                            key={period.number}
+                            className="bg-white/5 border border-white/10 rounded-lg p-3 sm:p-4 hover:bg-white/10 transition-all"
+                          >
+                            <div className="font-semibold text-base sm:text-lg mb-2 text-cyan-400">
+                              {period.name}
+                            </div>
+                            <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+                              <div className="text-2xl sm:text-3xl font-bold">
+                                {period.temperature}°
+                              </div>
+                              <div className="text-xs sm:text-sm text-gray-400">
+                                {period.windSpeed}
+                              </div>
+                            </div>
+                            <div className="text-xs sm:text-sm text-gray-300">
+                              {period.shortForecast}
+                            </div>
                           </div>
-                          <div className="text-xs sm:text-sm text-gray-400">
-                            {period.windSpeed}
-                          </div>
-                        </div>
-                        <div className="text-xs sm:text-sm text-gray-300">
-                          {period.shortForecast}
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </div>
+                    </div>
+                  </>
+                )}
 
                 {/* Info Footer */}
                 {error && (
