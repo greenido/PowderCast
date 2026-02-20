@@ -16,7 +16,8 @@
     "generate:resorts": "node scripts/generate-resorts-json.js",
     "generate:pwa-icons": "node scripts/generate-pwa-icons.js",
     "test:weather-api": "ts-node tests/weather-api.test.ts",
-    "test:verify-fix": "ts-node tests/verify-fix.ts"
+    "test:verify-fix": "ts-node tests/verify-fix.ts",
+    "test:new-features": "ts-node tests/new-features.test.ts"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1",

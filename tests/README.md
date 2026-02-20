@@ -46,6 +46,24 @@ This will:
 - Analyze snow accumulation data
 - Log detailed responses for debugging
 
+### New Features Test
+
+```bash
+npm run test:new-features
+```
+
+or
+
+```bash
+yarn test:new-features
+```
+
+This will test the newly added features:
+- Detailed text forecasts from NWS
+- Precipitation probability calculations
+- Humidity and dewpoint data
+- Temperature range (min/max) calculations
+
 ### Direct Execution
 
 You can also run the tests directly:

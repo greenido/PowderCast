@@ -512,29 +512,46 @@ export default function ProView({ gridpointUrl }: ProViewProps) {
         </h3>
         <div className="overflow-x-auto">
           <div className="flex gap-2 min-w-max pb-2">
-            {props.snowfallAmount.values.slice(0, 48).map((entry, idx) => {
-              const time = new Date(entry.validTime.split('/')[0]);
+            {(() => {
               const now = Date.now();
-              if (time.getTime() < now) return null;
+              const oneHourAgo = now - (3600000);
+              const futureEntries = props.snowfallAmount.values
+                .map((entry, idx) => {
+                  const timeStr = entry.validTime.split('/')[0];
+                  const time = new Date(timeStr);
+                  if (time.getTime() < oneHourAgo) return null;
+                  
+                  const snowInches = mmToInches(entry.value || 0);
+                  return (
+                    <div
+                      key={idx}
+                      className="bg-white/5 rounded-lg p-2 min-w-[70px] text-center border border-white/10"
+                    >
+                      <div className="text-xs text-gray-400 mb-1">
+                        {time.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                      </div>
+                      <div className="text-xs font-semibold text-gray-300 mb-2">
+                        {time.toLocaleTimeString([], { hour: 'numeric' })}
+                      </div>
+                      <div className="text-lg font-bold text-cyan-400">
+                        {snowInches > 0 ? snowInches.toFixed(1) : '0'}&quot;
+                      </div>
+                    </div>
+                  );
+                })
+                .filter(Boolean)
+                .slice(0, 48);
               
-              const snowInches = mmToInches(entry.value || 0);
-              return (
-                <div
-                  key={idx}
-                  className="bg-white/5 rounded-lg p-2 min-w-[70px] text-center border border-white/10"
-                >
-                  <div className="text-xs text-gray-400 mb-1">
-                    {time.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+              if (futureEntries.length === 0) {
+                return (
+                  <div className="text-center py-4 text-gray-400 w-full">
+                    No snow forecast data available for the next 48 hours
                   </div>
-                  <div className="text-xs font-semibold text-gray-300 mb-2">
-                    {time.toLocaleTimeString([], { hour: 'numeric' })}
-                  </div>
-                  <div className="text-lg font-bold text-cyan-400">
-                    {snowInches > 0 ? snowInches.toFixed(1) : '0'}&quot;
-                  </div>
-                </div>
-              );
-            }).filter(Boolean)}
+                );
+              }
+              
+              return futureEntries;
+            })()}
           </div>
         </div>
       </div>
@@ -547,29 +564,46 @@ export default function ProView({ gridpointUrl }: ProViewProps) {
         </h3>
         <div className="overflow-x-auto">
           <div className="flex gap-2 min-w-max pb-2">
-            {props.temperature.values.slice(0, 48).map((entry, idx) => {
-              const time = new Date(entry.validTime.split('/')[0]);
+            {(() => {
               const now = Date.now();
-              if (time.getTime() < now) return null;
+              const oneHourAgo = now - (3600000);
+              const futureEntries = props.temperature.values
+                .map((entry, idx) => {
+                  const timeStr = entry.validTime.split('/')[0];
+                  const time = new Date(timeStr);
+                  if (time.getTime() < oneHourAgo) return null;
+                  
+                  const tempF = entry.value !== null ? celsiusToFahrenheit(entry.value) : null;
+                  return (
+                    <div
+                      key={idx}
+                      className="bg-white/5 rounded-lg p-2 min-w-[70px] text-center border border-white/10"
+                    >
+                      <div className="text-xs text-gray-400 mb-1">
+                        {time.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                      </div>
+                      <div className="text-xs font-semibold text-gray-300 mb-2">
+                        {time.toLocaleTimeString([], { hour: 'numeric' })}
+                      </div>
+                      <div className="text-lg font-bold text-orange-400">
+                        {tempF !== null ? Math.round(tempF) : '--'}°F
+                      </div>
+                    </div>
+                  );
+                })
+                .filter(Boolean)
+                .slice(0, 48);
               
-              const tempF = entry.value !== null ? celsiusToFahrenheit(entry.value) : null;
-              return (
-                <div
-                  key={idx}
-                  className="bg-white/5 rounded-lg p-2 min-w-[70px] text-center border border-white/10"
-                >
-                  <div className="text-xs text-gray-400 mb-1">
-                    {time.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+              if (futureEntries.length === 0) {
+                return (
+                  <div className="text-center py-4 text-gray-400 w-full">
+                    No temperature data available for the next 48 hours
                   </div>
-                  <div className="text-xs font-semibold text-gray-300 mb-2">
-                    {time.toLocaleTimeString([], { hour: 'numeric' })}
-                  </div>
-                  <div className="text-lg font-bold text-orange-400">
-                    {tempF !== null ? Math.round(tempF) : '--'}°F
-                  </div>
-                </div>
-              );
-            }).filter(Boolean)}
+                );
+              }
+              
+              return futureEntries;
+            })()}
           </div>
         </div>
       </div>
@@ -582,38 +616,55 @@ export default function ProView({ gridpointUrl }: ProViewProps) {
         </h3>
         <div className="overflow-x-auto">
           <div className="flex gap-2 min-w-max pb-2">
-            {props.windSpeed.values.slice(0, 48).map((entry, idx) => {
-              const time = new Date(entry.validTime.split('/')[0]);
+            {(() => {
               const now = Date.now();
-              if (time.getTime() < now) return null;
-              
-              const windMph = entry.value !== null ? kmhToMph(entry.value) : null;
-              const gustEntry = props.windGust.values[idx];
-              const gustMph = gustEntry?.value !== null ? kmhToMph(gustEntry.value) : null;
-              
-              return (
-                <div
-                  key={idx}
-                  className="bg-white/5 rounded-lg p-2 min-w-[70px] text-center border border-white/10"
-                >
-                  <div className="text-xs text-gray-400 mb-1">
-                    {time.toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                  </div>
-                  <div className="text-xs font-semibold text-gray-300 mb-2">
-                    {time.toLocaleTimeString([], { hour: 'numeric' })}
-                  </div>
-                  <div className="text-lg font-bold text-blue-400">
-                    {windMph !== null ? Math.round(windMph) : '--'}
-                  </div>
-                  {gustMph && gustMph > 0 && (
-                    <div className="text-xs text-blue-300 mt-1">
-                      G{Math.round(gustMph)}
+              const oneHourAgo = now - (3600000);
+              const futureEntries = props.windSpeed.values
+                .map((entry, idx) => {
+                  const timeStr = entry.validTime.split('/')[0];
+                  const time = new Date(timeStr);
+                  if (time.getTime() < oneHourAgo) return null;
+                  
+                  const windMph = entry.value !== null ? kmhToMph(entry.value) : null;
+                  const gustEntry = props.windGust.values[idx];
+                  const gustMph = gustEntry?.value !== null ? kmhToMph(gustEntry.value) : null;
+                  
+                  return (
+                    <div
+                      key={idx}
+                      className="bg-white/5 rounded-lg p-2 min-w-[70px] text-center border border-white/10"
+                    >
+                      <div className="text-xs text-gray-400 mb-1">
+                        {time.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                      </div>
+                      <div className="text-xs font-semibold text-gray-300 mb-2">
+                        {time.toLocaleTimeString([], { hour: 'numeric' })}
+                      </div>
+                      <div className="text-lg font-bold text-blue-400">
+                        {windMph !== null ? Math.round(windMph) : '--'}
+                      </div>
+                      {gustMph && gustMph > 0 && (
+                        <div className="text-xs text-blue-300 mt-1">
+                          G{Math.round(gustMph)}
+                        </div>
+                      )}
+                      <div className="text-xs text-gray-400">mph</div>
                     </div>
-                  )}
-                  <div className="text-xs text-gray-400">mph</div>
-                </div>
-              );
-            }).filter(Boolean)}
+                  );
+                })
+                .filter(Boolean)
+                .slice(0, 48);
+              
+              if (futureEntries.length === 0) {
+                return (
+                  <div className="text-center py-4 text-gray-400 w-full">
+                    No wind data available for the next 48 hours
+                  </div>
+                );
+              }
+              
+              return futureEntries;
+            })()}
           </div>
         </div>
       </div>
@@ -626,38 +677,55 @@ export default function ProView({ gridpointUrl }: ProViewProps) {
         </h3>
         <div className="overflow-x-auto">
           <div className="flex gap-2 min-w-max pb-2">
-            {props.visibility.values.slice(0, 48).map((entry, idx) => {
-              const time = new Date(entry.validTime.split('/')[0]);
+            {(() => {
               const now = Date.now();
-              if (time.getTime() < now) return null;
+              const oneHourAgo = now - (3600000);
+              const futureEntries = props.visibility.values
+                .map((entry, idx) => {
+                  const timeStr = entry.validTime.split('/')[0];
+                  const time = new Date(timeStr);
+                  if (time.getTime() < oneHourAgo) return null;
+                  
+                  const visMiles = entry.value !== null ? metersToMiles(entry.value) : null;
+                  const skyEntry = props.skyCover.values[idx];
+                  const skyCover = skyEntry?.value ?? null;
+                  
+                  return (
+                    <div
+                      key={idx}
+                      className="bg-white/5 rounded-lg p-2 min-w-[70px] text-center border border-white/10"
+                    >
+                      <div className="text-xs text-gray-400 mb-1">
+                        {time.toLocaleDateString([], { month: 'short', day: 'numeric' })}
+                      </div>
+                      <div className="text-xs font-semibold text-gray-300 mb-2">
+                        {time.toLocaleTimeString([], { hour: 'numeric' })}
+                      </div>
+                      <div className="text-sm font-bold text-purple-400">
+                        {visMiles !== null ? visMiles.toFixed(1) : '--'}mi
+                      </div>
+                      <div className="text-xs text-purple-300 mt-1">
+                        {skyCover !== null ? `${skyCover}%` : '--'}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        {skyCover !== null ? (skyCover < 25 ? 'Clear' : skyCover < 50 ? 'Partly' : skyCover < 75 ? 'Mostly' : 'Overcast') : 'sky'}
+                      </div>
+                    </div>
+                  );
+                })
+                .filter(Boolean)
+                .slice(0, 48);
               
-              const visMiles = entry.value !== null ? metersToMiles(entry.value) : null;
-              const skyEntry = props.skyCover.values[idx];
-              const skyCover = skyEntry?.value ?? null;
+              if (futureEntries.length === 0) {
+                return (
+                  <div className="text-center py-4 text-gray-400 w-full">
+                    No visibility data available for the next 48 hours
+                  </div>
+                );
+              }
               
-              return (
-                <div
-                  key={idx}
-                  className="bg-white/5 rounded-lg p-2 min-w-[70px] text-center border border-white/10"
-                >
-                  <div className="text-xs text-gray-400 mb-1">
-                    {time.toLocaleDateString([], { month: 'short', day: 'numeric' })}
-                  </div>
-                  <div className="text-xs font-semibold text-gray-300 mb-2">
-                    {time.toLocaleTimeString([], { hour: 'numeric' })}
-                  </div>
-                  <div className="text-sm font-bold text-purple-400">
-                    {visMiles !== null ? visMiles.toFixed(1) : '--'}mi
-                  </div>
-                  <div className="text-xs text-purple-300 mt-1">
-                    {skyCover !== null ? `${skyCover}%` : '--'}
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    {skyCover !== null ? (skyCover < 25 ? 'Clear' : skyCover < 50 ? 'Partly' : skyCover < 75 ? 'Mostly' : 'Overcast') : 'sky'}
-                  </div>
-                </div>
-              );
-            }).filter(Boolean)}
+              return futureEntries;
+            })()}
           </div>
         </div>
       </div>

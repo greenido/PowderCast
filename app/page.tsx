@@ -6,6 +6,9 @@ import ElevationToggle from '@/components/ElevationToggle';
 import SnowAccumulationCard from '@/components/SnowAccumulationCard';
 import WindGustsCard from '@/components/WindGustsCard';
 import VisibilityCard from '@/components/VisibilityCard';
+import HumidityCard from '@/components/HumidityCard';
+import TempRangeCard from '@/components/TempRangeCard';
+import DetailedForecast from '@/components/DetailedForecast';
 import SnowQualityTag from '@/components/SnowQualityTag';
 import PowderAlert from '@/components/PowderAlert';
 import BluebirdIndicator from '@/components/BluebirdIndicator';
@@ -230,6 +233,24 @@ export default function Home() {
                         shortForecast={weatherData.periods[0]?.shortForecast || 'N/A'}
                       />
                     </div>
+
+                    {/* New Weather Details: Humidity/Dewpoint and Temp/Precip */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                      <HumidityCard
+                        humidity={weatherData.currentHumidity}
+                        dewpoint={weatherData.currentDewpoint}
+                        temperature={weatherData.currentTemp}
+                      />
+                      <TempRangeCard
+                        maxTemp24h={weatherData.maxTemp24h}
+                        minTemp24h={weatherData.minTemp24h}
+                        currentTemp={weatherData.currentTemp}
+                        maxPrecipProb24h={weatherData.maxPrecipProb24h}
+                      />
+                    </div>
+
+                    {/* Detailed Forecast Section */}
+                    <DetailedForecast periods={weatherData.periods} />
 
                     {/* Hourly Snow Forecast */}
                     <HourlySnowForecast hourlyData={weatherData.hourlySnowForecast} />

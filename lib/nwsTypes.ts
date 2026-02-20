@@ -50,6 +50,14 @@ export interface NWSGridData {
       values: NWSGridDataValue[];
       uom: string;
     };
+    dewpoint?: {
+      values: NWSGridDataValue[];
+      uom: string;
+    };
+    relativeHumidity?: {
+      values: NWSGridDataValue[];
+      uom: string;
+    };
     windSpeed?: {
       values: NWSGridDataValue[];
       uom: string;
@@ -71,6 +79,10 @@ export interface NWSGridData {
       uom: string;
     };
     quantitativePrecipitation?: {
+      values: NWSGridDataValue[];
+      uom: string;
+    };
+    probabilityOfPrecipitation?: {
       values: NWSGridDataValue[];
       uom: string;
     };
@@ -97,6 +109,8 @@ export interface ProcessedWeatherData {
   currentWindGust: number;
   currentVisibility: number;
   currentSkyCover: number;
+  currentHumidity: number;
+  currentDewpoint: number;
 
   // Snow accumulation
   snow24h: number;
@@ -106,6 +120,13 @@ export interface ProcessedWeatherData {
   maxWindGust24h: number;
   maxWindGust7day: number;
   avgWindSpeed: number;
+
+  // Temperature ranges (next 24h)
+  maxTemp24h: number;
+  minTemp24h: number;
+
+  // Precipitation probability (next 24h)
+  maxPrecipProb24h: number;
 
   // Forecast periods
   periods: NWSForecastPeriod[];

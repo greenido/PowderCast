@@ -272,6 +272,9 @@ function processWeatherData(data: WeatherData): ProcessedWeatherData {
   const tempValues = gridData.properties.temperature?.values || [];
   const skyCoverValues = gridData.properties.skyCover?.values || [];
   const visibilityValues = gridData.properties.visibility?.values || [];
+  const dewpointValues = gridData.properties.dewpoint?.values || [];
+  const humidityValues = gridData.properties.relativeHumidity?.values || [];
+  const precipProbValues = gridData.properties.probabilityOfPrecipitation?.values || [];
   
   log('[NWS Processing] Grid data values count:', {
     windGust: windGustValues.length,
@@ -279,6 +282,9 @@ function processWeatherData(data: WeatherData): ProcessedWeatherData {
     temp: tempValues.length,
     skyCover: skyCoverValues.length,
     visibility: visibilityValues.length,
+    dewpoint: dewpointValues.length,
+    humidity: humidityValues.length,
+    precipProb: precipProbValues.length,
   });
 
   // Calculate 24h and 7-day snow accumulation
@@ -308,6 +314,23 @@ function processWeatherData(data: WeatherData): ProcessedWeatherData {
   const currentWindGust = windGustValues[0]?.value || currentWindSpeed;
   const currentSkyCover = skyCoverValues[0]?.value || 0;
   const currentVisibility = visibilityValues[0]?.value || 16000; // meters
+  const currentDewpoint = dewpointValues[0]?.value 
+    ? (dewpointValues[0].value * 9/5) + 32 // Convert Celsius to Fahrenheit
+    : currentTemp - 5; // Fallback estimate
+  const currentHumidity = humidityValues[0]?.value || 50; // Default 50%
+
+  // Calculate temperature range (next 24h)
+  const tempRange = getTempRange(tempValues, now, 24);
+  const maxTemp24h = tempRange.max;
+  const minTemp24h = tempRange.min;
+  log('[NWS Processing] Temperature range (next 24h):', {
+    max: `${maxTemp24h.toFixed(1)}°F`,
+    min: `${minTemp24h.toFixed(1)}°F`,
+  });
+
+  // Get max precipitation probability (next 24h)
+  const maxPrecipProb24h = getMaxValue(precipProbValues, now, 24);
+  log('[NWS Processing] Max precipitation probability (next 24h):', `${maxPrecipProb24h.toFixed(0)}%`);
 
   // Calculate average wind speed (next 24h)
 const avgWindSpeed = getAverageValue(
@@ -369,11 +392,16 @@ const avgWindSpeed = getAverageValue(
     currentWindGust,
     currentVisibility,
     currentSkyCover,
+    currentHumidity,
+    currentDewpoint,
     snow24h,
     snow7day,
     maxWindGust24h,
     maxWindGust7day,
     avgWindSpeed,
+    maxTemp24h,
+    minTemp24h,
+    maxPrecipProb24h,
     periods,
     snowQuality,
     windHoldRisk,
@@ -518,6 +546,50 @@ function getAverageValueBackward(
 
   if (relevantValues.length === 0) return 0;
   return relevantValues.reduce((a, b) => a + b, 0) / relevantValues.length;
+}
+
+function getTempRange(
+  values: NWSGridDataValue[], 
+  fromTime: number, 
+  hours: number
+): { max: number; min: number } {
+  const endTime = fromTime + (hours * 3600000);
+  let max = -Infinity;
+  let min = Infinity;
+
+  for (const val of values) {
+    const time = new Date(val.validTime.split('/')[0]).getTime();
+    if (time >= fromTime && time <= endTime && val.value !== null) {
+      // Convert from Celsius to Fahrenheit
+      const tempF = (val.value * 9/5) + 32;
+      max = Math.max(max, tempF);
+      min = Math.min(min, tempF);
+    }
+  }
+
+  // If no values found, use reasonable defaults
+  if (max === -Infinity) max = 32;
+  if (min === Infinity) min = 20;
+
+  return { max, min };
+}
+
+function getMaxValue(
+  values: NWSGridDataValue[], 
+  fromTime: number, 
+  hours: number
+): number {
+  const endTime = fromTime + (hours * 3600000);
+  let max = 0;
+
+  for (const val of values) {
+    const time = new Date(val.validTime.split('/')[0]).getTime();
+    if (time >= fromTime && time <= endTime && val.value !== null) {
+      max = Math.max(max, val.value);
+    }
+  }
+
+  return max;
 }
 
 function processHourlySnowForecast(
