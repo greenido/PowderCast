@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ChevronDownIcon,
   ChevronUpIcon,
@@ -60,7 +60,7 @@ export default function ProView({ gridpointUrl }: ProViewProps) {
   const [gridData, setGridData] = useState<GridpointData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['snow', 'temperature', 'wind']));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['❄️ Snow & Precipitation', '🌡️ Temperature', '💨 Wind']));
 
   const fetchGridData = async () => {
     if (!gridpointUrl) return;
@@ -88,6 +88,12 @@ export default function ProView({ gridpointUrl }: ProViewProps) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (gridpointUrl) {
+      fetchGridData();
+    }
+  }, [gridpointUrl]);
 
   const toggleSection = (section: string) => {
     const newExpanded = new Set(expandedSections);
@@ -132,22 +138,6 @@ export default function ProView({ gridpointUrl }: ProViewProps) {
       <div className="glass-card text-center py-8">
         <BeakerIcon className="w-12 h-12 mx-auto mb-4 text-gray-400" />
         <p className="text-gray-400">Select a resort to view Pro data</p>
-      </div>
-    );
-  }
-
-  if (!gridData && !loading && !error) {
-    return (
-      <div className="glass-card text-center py-8">
-        <button
-          onClick={fetchGridData}
-          className="px-6 py-3 bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 rounded-lg font-semibold transition-all"
-        >
-          🔬 Load Pro View Data
-        </button>
-        <p className="text-xs text-gray-500 mt-4">
-          View comprehensive NWS gridpoint data
-        </p>
       </div>
     );
   }
@@ -200,7 +190,7 @@ export default function ProView({ gridpointUrl }: ProViewProps) {
       title: '❄️ Snow & Precipitation',
       icon: <CloudIcon className="w-6 h-6" />,
       color: 'cyan',
-      expanded: expandedSections.has('snow'),
+      expanded: expandedSections.has('❄️ Snow & Precipitation'),
       data: [
         { label: 'Next 24h Snow', value: mmToInches(snow24h).toFixed(1), unit: 'in' },
         { label: 'Next 48h Snow', value: mmToInches(snow48h).toFixed(1), unit: 'in' },
@@ -252,7 +242,7 @@ export default function ProView({ gridpointUrl }: ProViewProps) {
       title: '🌡️ Temperature',
       icon: <SunIcon className="w-6 h-6" />,
       color: 'orange',
-      expanded: expandedSections.has('temperature'),
+      expanded: expandedSections.has('🌡️ Temperature'),
       data: [
         { label: 'Current Temp', value: currentTemp ? celsiusToFahrenheit(currentTemp).toFixed(1) : 'N/A', unit: '°F' },
         { label: 'Feels Like', value: getLatestValue(props.apparentTemperature?.values || []) ? celsiusToFahrenheit(getLatestValue(props.apparentTemperature.values)!).toFixed(1) : 'N/A', unit: '°F' },
@@ -292,7 +282,7 @@ export default function ProView({ gridpointUrl }: ProViewProps) {
       title: '💨 Wind',
       icon: <CloudIcon className="w-6 h-6" />,
       color: 'blue',
-      expanded: expandedSections.has('wind'),
+      expanded: expandedSections.has('💨 Wind'),
       data: [
         { label: 'Current Wind Speed', value: currentWindSpeed ? kmhToMph(currentWindSpeed).toFixed(1) : 'N/A', unit: 'mph' },
         { label: 'Current Wind Gusts', value: currentWindGust ? kmhToMph(currentWindGust).toFixed(1) : 'N/A', unit: 'mph' },
@@ -346,7 +336,7 @@ export default function ProView({ gridpointUrl }: ProViewProps) {
       title: '👁️ Visibility & Sky',
       icon: <EyeIcon className="w-6 h-6" />,
       color: 'purple',
-      expanded: expandedSections.has('visibility'),
+      expanded: expandedSections.has('👁️ Visibility & Sky'),
       data: [
         { label: 'Current Visibility', value: currentVisibility ? metersToMiles(currentVisibility).toFixed(1) : 'N/A', unit: 'mi' },
         { label: 'Current Sky Cover', value: currentSkyCover?.toString() || 'N/A', unit: '%' },
@@ -386,7 +376,7 @@ export default function ProView({ gridpointUrl }: ProViewProps) {
       title: '⚡ Atmospheric',
       icon: <BeakerIcon className="w-6 h-6" />,
       color: 'yellow',
-      expanded: expandedSections.has('atmospheric'),
+      expanded: expandedSections.has('⚡ Atmospheric'),
       data: [
         { label: 'Elevation', value: props.elevation?.value ? metersToFeet(props.elevation.value).toFixed(0) : 'N/A', unit: 'ft' },
         { label: 'Current Mixing Height', value: getLatestValue(props.mixingHeight?.values || []) ? metersToFeet(getLatestValue(props.mixingHeight.values)!).toFixed(0) : 'N/A', unit: 'ft' },
