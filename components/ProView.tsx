@@ -617,6 +617,10 @@ export default function ProView({ gridpointUrl }: ProViewProps) {
         <div className="overflow-x-auto">
           <div className="flex gap-2 min-w-max pb-2">
             {(() => {
+              console.log('[Wind] Raw windSpeed data:', JSON.stringify(props.windSpeed, null, 2));
+              console.log('[Wind] Raw windGust data:', JSON.stringify(props.windGust, null, 2));
+              console.log('[Wind] windSpeed entries count:', props.windSpeed.values.length);
+              console.log('[Wind] windGust entries count:', props.windGust.values.length);
               const now = Date.now();
               const oneHourAgo = now - (3600000);
               const futureEntries = props.windSpeed.values
@@ -627,7 +631,7 @@ export default function ProView({ gridpointUrl }: ProViewProps) {
                   
                   const windMph = entry.value !== null ? kmhToMph(entry.value) : null;
                   const gustEntry = props.windGust.values[idx];
-                  const gustMph = gustEntry?.value !== null ? kmhToMph(gustEntry.value) : null;
+                  const gustMph = gustEntry?.value != null ? kmhToMph(gustEntry.value) : null;
                   
                   return (
                     <div
