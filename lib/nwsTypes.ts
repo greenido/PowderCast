@@ -1,3 +1,5 @@
+import type { SnowQuality } from '@/lib/snowLogic';
+
 // NWS API TypeScript Interfaces
 
 export interface NWSPoint {
@@ -132,7 +134,7 @@ export interface ProcessedWeatherData {
   periods: NWSForecastPeriod[];
 
   // Calculated metrics
-  snowQuality: string;
+  snowQuality: SnowQuality;
   windHoldRisk: boolean;
   frostbiteRisk: boolean;
   bluebirdDay: boolean;
@@ -154,5 +156,5 @@ export interface HourlySnowData {
   snowfall: number; // Inches
   temperature: number; // Fahrenheit
   windSpeed: number; // mph
-  snowQuality: string;
+  snowQuality: SnowQuality;
 }

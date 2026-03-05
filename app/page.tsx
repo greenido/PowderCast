@@ -1,44 +1,25 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import SearchBar from '@/components/SearchBar';
 import ElevationToggle from '@/components/ElevationToggle';
-import SnowAccumulationCard from '@/components/SnowAccumulationCard';
-import WindGustsCard from '@/components/WindGustsCard';
-import VisibilityCard from '@/components/VisibilityCard';
-import HumidityCard from '@/components/HumidityCard';
-import TempRangeCard from '@/components/TempRangeCard';
-import DetailedForecast from '@/components/DetailedForecast';
-import SnowQualityTag from '@/components/SnowQualityTag';
-import PowderAlert from '@/components/PowderAlert';
-import BluebirdIndicator from '@/components/BluebirdIndicator';
-import FrostbiteWarning from '@/components/FrostbiteWarning';
-import WebcamViewer from '@/components/WebcamViewer';
-import HourlySnowForecast from '@/components/HourlySnowForecast';
-import FutureSnowWidget from '@/components/FutureSnowWidget';
+import ResortHeader from '@/components/ResortHeader';
+import WeatherDashboard from '@/components/WeatherDashboard';
 import InstallPWA from '@/components/InstallPWA';
 import FavoritesList from '@/components/FavoritesList';
-import ProView from '@/components/ProView';
 import { useNWSWeather } from '@/hooks/useNWSWeather';
 import { useFavorites } from '@/hooks/useFavorites';
+import { ResortsProvider, useResortsContext } from '@/hooks/useResorts';
 import type { Resort } from '@/lib/database';
 import { StarIcon, BeakerIcon } from '@heroicons/react/24/solid';
 
-export default function Home() {
+function HomeContent() {
+  const { allResorts } = useResortsContext();
+
   const [selectedResort, setSelectedResort] = useState<Resort | null>(null);
   const [elevation, setElevation] = useState<'base' | 'summit'>('base');
-  const [allResorts, setAllResorts] = useState<Resort[]>([]);
   const [showFavorites, setShowFavorites] = useState(false);
   const [showProView, setShowProView] = useState(false);
-
-  // Load all resorts for favorites functionality
-  useEffect(() => {
-    const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    fetch(`${basePath}/resorts.json`)
-      .then((res) => res.json())
-      .then((data) => setAllResorts(data))
-      .catch((err) => console.error('Failed to load resorts:', err));
-  }, []);
 
   const { favorites, toggleFavorite, isFavorite, hasFavorites } = useFavorites(allResorts);
 
@@ -67,8 +48,7 @@ export default function Home() {
           <p className="text-base sm:text-lg md:text-xl text-gray-400 px-4">
             The Ultimate Snowboarder&apos;s Weather App
           </p>
-          
-          {/* Favorites Button */}
+
           {hasFavorites && (
             <div className="mt-4">
               <button
@@ -93,7 +73,7 @@ export default function Home() {
           />
         </div>
 
-        {/* Content */}
+        {/* Welcome */}
         {!selectedResort && (
           <div className="glass-card text-center py-12 sm:py-16">
             <div className="text-4xl sm:text-5xl md:text-6xl mb-6">🏔️</div>
@@ -109,51 +89,17 @@ export default function Home() {
               </a>
             </div>
           </div>
-        )}  
+        )}
 
         {selectedResort && (
           <div className="space-y-4 sm:space-y-6">
-            {/* Resort Header */}
-            <div className="glass-card">
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 sm:gap-3 mb-2">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-cyan-400">
-                      {selectedResort.name}
-                    </h2>
-                    <button
-                      onClick={() => toggleFavorite(selectedResort.id)}
-                      className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-                      aria-label={isFavorite(selectedResort.id) ? 'Remove from favorites' : 'Add to favorites'}
-                    >
-                      <StarIcon 
-                        className={`w-5 h-5 sm:w-6 sm:h-6 ${
-                          isFavorite(selectedResort.id) ? 'text-yellow-400' : 'text-gray-600'
-                        }`}
-                      />
-                    </button>
-                  </div>
-                  <p className="text-sm sm:text-base text-gray-400">
-                    {selectedResort.region}, {selectedResort.state}
-                  </p>
-                </div>
-                <div className="text-left sm:text-right">
-                  <div className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider mb-1">
-                    Current View
-                  </div>
-                  <div className="text-xl sm:text-2xl font-bold text-cyan-400">
-                    {elevation === 'base' ? 'Base' : 'Summit'}
-                  </div>
-                  <div className="text-base sm:text-lg text-gray-400">
-                    {elevation === 'base'
-                      ? selectedResort.base_elevation.toLocaleString()
-                      : selectedResort.summit_elevation.toLocaleString()}ft
-                  </div>
-                </div>
-              </div>
-            </div>
+            <ResortHeader
+              resort={selectedResort}
+              elevation={elevation}
+              isFavorite={isFavorite(selectedResort.id)}
+              onToggleFavorite={() => toggleFavorite(selectedResort.id)}
+            />
 
-            {/* Elevation Toggle */}
             <ElevationToggle
               elevation={elevation}
               onToggle={setElevation}
@@ -177,7 +123,6 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Loading State */}
             {loading && (
               <div className="glass-card text-center py-12">
                 <div className="text-4xl mb-4 animate-bounce">🌨️</div>
@@ -185,7 +130,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Error State */}
             {error && !weatherData && (
               <div className="glass-card border-2 border-mountain-danger text-center py-12">
                 <div className="text-4xl mb-4">⚠️</div>
@@ -194,131 +138,20 @@ export default function Home() {
               </div>
             )}
 
-            {/* Weather Data */}
             {weatherData && (
-              <>
-                {showProView ? (
-                  <ProView gridpointUrl={weatherData.gridDataUrl} />
-                ) : (
-                  <>
-                    {/* Special Alerts */}
-                    <div className="space-y-4">
-                      <PowderAlert snow24h={weatherData.snow24h} />
-                      <BluebirdIndicator
-                        isBluebird={weatherData.bluebirdDay}
-                        skyCover={weatherData.currentSkyCover}
-                        windSpeed={weatherData.currentWindSpeed}
-                      />
-                      <FrostbiteWarning
-                        temperature={weatherData.currentTemp}
-                        windSpeed={weatherData.currentWindSpeed}
-                      />
-                    </div>
-
-                    {/* The Big Three */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                      <SnowAccumulationCard
-                        snow24h={weatherData.snow24h}
-                        snow7day={weatherData.snow7day}
-                      />
-                      <WindGustsCard
-                        currentWindSpeed={weatherData.currentWindSpeed}
-                        currentWindGust={weatherData.currentWindGust}
-                        maxWindGust24h={weatherData.maxWindGust24h}
-                        maxWindGust7day={weatherData.maxWindGust7day}
-                      />
-                      <VisibilityCard
-                        visibility={weatherData.currentVisibility}
-                        skyCover={weatherData.currentSkyCover}
-                        shortForecast={weatherData.periods[0]?.shortForecast || 'N/A'}
-                      />
-                    </div>
-
-                    {/* New Weather Details: Humidity/Dewpoint and Temp/Precip */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <HumidityCard
-                        humidity={weatherData.currentHumidity}
-                        dewpoint={weatherData.currentDewpoint}
-                        temperature={weatherData.currentTemp}
-                      />
-                      <TempRangeCard
-                        maxTemp24h={weatherData.maxTemp24h}
-                        minTemp24h={weatherData.minTemp24h}
-                        currentTemp={weatherData.currentTemp}
-                        maxPrecipProb24h={weatherData.maxPrecipProb24h}
-                      />
-                    </div>
-
-                    {/* Detailed Forecast Section */}
-                    <DetailedForecast periods={weatherData.periods} />
-
-                    {/* Hourly Snow Forecast */}
-                    <HourlySnowForecast hourlyData={weatherData.hourlySnowForecast} />
-
-                    {/* Future Snow Widget */}
-                    <FutureSnowWidget hourlyData={weatherData.hourlySnowForecast} />
-
-                    {/* Snow Quality & Webcams */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      <SnowQualityTag
-                        quality={weatherData.snowQuality as any}
-                        temperature={weatherData.precipTemp}
-                      />
-                      <WebcamViewer
-                        webcamUrl={selectedResort.webcam_url}
-                        resortName={selectedResort.name}
-                      />
-                    </div>
-
-                    {/* 7-Day Forecast */}
-                    <div className="glass-card">
-                      <h3 className="metric-label mb-4 sm:mb-6">7-Day Forecast</h3>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                        {weatherData.periods.slice(0, 7).map((period) => (
-                          <div
-                            key={period.number}
-                            className="bg-white/5 border border-white/10 rounded-lg p-3 sm:p-4 hover:bg-white/10 transition-all"
-                          >
-                            <div className="font-semibold text-base sm:text-lg mb-2 text-cyan-400">
-                              {period.name}
-                            </div>
-                            <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-                              <div className="text-2xl sm:text-3xl font-bold">
-                                {period.temperature}°
-                              </div>
-                              <div className="text-xs sm:text-sm text-gray-400">
-                                {period.windSpeed}
-                              </div>
-                            </div>
-                            <div className="text-xs sm:text-sm text-gray-300">
-                              {period.shortForecast}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Info Footer */}
-                {error && (
-                  <div className="text-center text-sm text-gray-500 italic">
-                    ⚠️ {error}
-                  </div>
-                )}
-                <div className="text-center text-xs text-gray-600">
-                  Data provided by the National Weather Service • Updated: {new Date().toLocaleString()}
-                </div>
-              </>
+              <WeatherDashboard
+                weatherData={weatherData}
+                selectedResort={selectedResort}
+                showProView={showProView}
+                error={error}
+              />
             )}
           </div>
         )}
       </div>
 
-      {/* PWA Install Prompt */}
       <InstallPWA />
 
-      {/* Favorites List Modal */}
       <FavoritesList
         favorites={favorites}
         onSelectResort={setSelectedResort}
@@ -327,5 +160,13 @@ export default function Home() {
         onClose={() => setShowFavorites(false)}
       />
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <ResortsProvider>
+      <HomeContent />
+    </ResortsProvider>
   );
 }

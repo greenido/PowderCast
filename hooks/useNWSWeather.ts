@@ -17,9 +17,10 @@ import {
   hasFrostbiteRisk,
   hasWindHoldRisk,
 } from '@/lib/snowLogic';
+import type { SnowQuality } from '@/lib/snowLogic';
+import { fetchWithRetry } from '@/lib/fetchWithRetry';
 
-// Enable detailed logging - set to false to reduce console output
-const ENABLE_DETAILED_LOGS = true;
+const ENABLE_DETAILED_LOGS = process.env.NODE_ENV !== 'production';
 
 function log(...args: any[]) {
   if (ENABLE_DETAILED_LOGS) {
@@ -61,15 +62,12 @@ export function useNWSWeather(lat: number | null, lon: number | null) {
       log('[NWS API] URL:', pointUrl);
       
       const pointStartTime = performance.now();
-      const pointResponse = await fetch(
-        pointUrl,
-        {
-          headers: {
-            'User-Agent': USER_AGENT,
-            'Accept': 'application/geo+json',
-          },
-        }
-      );
+      const pointResponse = await fetchWithRetry(pointUrl, {
+        headers: {
+          'User-Agent': USER_AGENT,
+          'Accept': 'application/geo+json',
+        },
+      });
       const pointEndTime = performance.now();
       
       log('[NWS API] Point response status:', pointResponse.status);
@@ -108,13 +106,13 @@ export function useNWSWeather(lat: number | null, lon: number | null) {
       
       const parallelStartTime = performance.now();
       const [forecastResponse, gridDataResponse] = await Promise.all([
-        fetch(forecastUrl, {
+        fetchWithRetry(forecastUrl, {
           headers: {
             'User-Agent': USER_AGENT,
             'Accept': 'application/geo+json',
           },
         }),
-        fetch(gridDataUrl, {
+        fetchWithRetry(gridDataUrl, {
           headers: {
             'User-Agent': USER_AGENT,
             'Accept': 'application/geo+json',
@@ -362,7 +360,7 @@ function processWeatherData(data: WeatherData): ProcessedWeatherData {
 
   // Determine snow quality from temperature during precipitation
   let precipTemp: number | null = null;
-  let snowQuality = 'Premium Packed';
+  let snowQuality: SnowQuality = 'Premium Packed';
   
   if (snow24h > 0) {
     // Get avg temp during snow periods (past 24h)

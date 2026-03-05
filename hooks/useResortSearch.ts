@@ -1,27 +1,11 @@
 import { useState, useEffect } from 'react';
 import type { Resort } from '@/lib/database';
+import { useResortsContext } from '@/hooks/useResorts';
 
 export function useResortSearch(query: string) {
+  const { allResorts } = useResortsContext();
   const [resorts, setResorts] = useState<Resort[]>([]);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [allResorts, setAllResorts] = useState<Resort[]>([]);
-
-  // Load all resorts once
-  useEffect(() => {
-    const loadResorts = async () => {
-      try {
-        const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-        const response = await fetch(`${basePath}/resorts.json`);
-        if (!response.ok) throw new Error('Failed to load resorts');
-        const data = await response.json();
-        setAllResorts(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
-      }
-    };
-    loadResorts();
-  }, []);
 
   useEffect(() => {
     if (!query || query.length < 2) {
@@ -31,7 +15,6 @@ export function useResortSearch(query: string) {
 
     const searchResorts = () => {
       setLoading(true);
-      setError(null);
 
       try {
         const q = query.toLowerCase();
@@ -41,61 +24,32 @@ export function useResortSearch(query: string) {
             resort.state.toLowerCase().includes(q) ||
             resort.region.toLowerCase().includes(q)
         );
-        setResorts(filtered.slice(0, 10)); // Limit results
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
-        setResorts([]);
+        setResorts(filtered.slice(0, 10));
       } finally {
         setLoading(false);
       }
     };
 
-    // Debounce search
     const timeoutId = setTimeout(searchResorts, 300);
     return () => clearTimeout(timeoutId);
   }, [query, allResorts]);
 
-  return { resorts, loading, error };
+  return { resorts, loading };
 }
 
 export function useResort(resortId: string | null) {
+  const { allResorts, resortsLoading } = useResortsContext();
   const [resort, setResort] = useState<Resort | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!resortId) {
-      setResort(null);
+    if (!resortId || resortsLoading) {
+      if (!resortId) setResort(null);
       return;
     }
 
-    const fetchResort = async () => {
-      setLoading(true);
-      setError(null);
+    const found = allResorts.find((r) => r.id === resortId) ?? null;
+    setResort(found);
+  }, [resortId, allResorts, resortsLoading]);
 
-      try {
-        const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-        const response = await fetch(`${basePath}/resorts.json`);
-        if (!response.ok) throw new Error('Failed to load resorts');
-        
-        const allResorts: Resort[] = await response.json();
-        const foundResort = allResorts.find((r) => r.id === resortId);
-        
-        if (!foundResort) {
-          throw new Error('Resort not found');
-        }
-        
-        setResort(foundResort);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error');
-        setResort(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchResort();
-  }, [resortId]);
-
-  return { resort, loading, error };
+  return { resort, loading: resortsLoading };
 }
