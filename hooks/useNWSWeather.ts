@@ -170,6 +170,14 @@ export function useNWSWeather(lat: number | null, lon: number | null) {
       });
       log('[NWS API] ========================================');
 
+      const windGustRawValues = gridData.properties.windGust?.values || [];
+      log('[NWS API] RAW WIND GUST DATA (first 10 points):');
+      windGustRawValues.slice(0, 10).forEach((val: any, idx: number) => {
+        const mph = val.value ? (val.value * 0.621371).toFixed(1) : 'null';
+        log(`[NWS API]   [${idx}] time: ${val.validTime}, value: ${val.value} km/h (${mph} mph)`);
+      });
+      log('[NWS API] ========================================');
+
       const data: WeatherData = { forecast, gridData, location };
       
       log('[NWS API] Processing weather data...');
@@ -311,7 +319,14 @@ function processWeatherData(data: WeatherData): ProcessedWeatherData {
   });
 
   // Get current conditions
-  const currentWindGust = windGustValues[0]?.value || currentWindSpeed;
+  // NWS grid data windGust values are in km/h - must convert to mph
+  const rawWindGust = windGustValues[0]?.value;
+  const currentWindGust = rawWindGust != null ? rawWindGust * 0.621371 : currentWindSpeed;
+  log('[NWS Processing] Current wind gust:', {
+    rawKmh: rawWindGust ?? 'N/A',
+    convertedMph: currentWindGust.toFixed(1),
+    fallbackToWindSpeed: rawWindGust == null,
+  });
   const currentSkyCover = skyCoverValues[0]?.value || 0;
   const currentVisibility = visibilityValues[0]?.value || 16000; // meters
   const currentDewpoint = dewpointValues[0]?.value 
@@ -333,12 +348,17 @@ function processWeatherData(data: WeatherData): ProcessedWeatherData {
   log('[NWS Processing] Max precipitation probability (next 24h):', `${maxPrecipProb24h.toFixed(0)}%`);
 
   // Calculate average wind speed (next 24h)
-const avgWindSpeed = getAverageValue(
+  // NWS grid data windSpeed values are in km/h - convert the average to mph
+  const avgWindSpeedKmh = getAverageValue(
     gridData.properties.windSpeed?.values || [], 
     now, 
     24
   );
-  log('[NWS Processing] Average wind speed (next 24h):', `${avgWindSpeed.toFixed(1)} mph`);
+  const avgWindSpeed = avgWindSpeedKmh * 0.621371;
+  log('[NWS Processing] Average wind speed (next 24h):', {
+    rawKmh: avgWindSpeedKmh.toFixed(1),
+    convertedMph: avgWindSpeed.toFixed(1),
+  });
 
   // Determine snow quality from temperature during precipitation
   let precipTemp: number | null = null;

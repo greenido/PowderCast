@@ -72,7 +72,7 @@ const resorts = [
     summit_lat: 37.6467,
     summit_lon: -119.0303,
     summit_elevation: 11053,
-    webcam_url: 'https://www.mammothmountain.com/mountain-information/webcams',
+    webcam_url: 'https://www.mammothmountain.com/on-the-mountain/mammoth-webcam',
   },
   
   // Colorado - Summit County
