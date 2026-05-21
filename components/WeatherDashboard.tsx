@@ -14,12 +14,16 @@ import FutureSnowWidget from '@/components/FutureSnowWidget';
 import SnowQualityTag from '@/components/SnowQualityTag';
 import WebcamViewer from '@/components/WebcamViewer';
 import ProView from '@/components/ProView';
+import DataFreshness from '@/components/DataFreshness';
 
 interface WeatherDashboardProps {
   weatherData: ProcessedWeatherData;
   selectedResort: Resort;
   showProView: boolean;
   error: string | null;
+  lastFetchTime: number | null;
+  onRefresh: () => void;
+  loading: boolean;
 }
 
 export default function WeatherDashboard({
@@ -27,6 +31,9 @@ export default function WeatherDashboard({
   selectedResort,
   showProView,
   error,
+  lastFetchTime,
+  onRefresh,
+  loading,
 }: WeatherDashboardProps) {
   return (
     <>
@@ -129,8 +136,15 @@ export default function WeatherDashboard({
           ⚠️ {error}
         </div>
       )}
-      <div className="text-center text-xs text-gray-600">
-        Data provided by the National Weather Service • Updated: {new Date().toLocaleString()}
+      <div className="flex flex-col items-center justify-center gap-2 mt-6">
+        <DataFreshness
+          lastFetchTime={lastFetchTime}
+          onRefresh={onRefresh}
+          loading={loading}
+        />
+        <div className="text-center text-[10px] text-gray-600 uppercase tracking-wider mt-2 font-semibold">
+          Data provided by the National Weather Service
+        </div>
       </div>
     </>
   );

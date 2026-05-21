@@ -17,17 +17,18 @@
     "generate:pwa-icons": "node scripts/generate-pwa-icons.js",
     "test:weather-api": "ts-node tests/weather-api.test.ts",
     "test:verify-fix": "ts-node tests/verify-fix.ts",
-    "test:new-features": "ts-node tests/new-features.test.ts"
+    "test:new-features": "ts-node tests/new-features.test.ts",
+    "test:ride-score": "ts-node -O '{\"module\": \"commonjs\"}' tests/ride-score.test.ts"
   },
   "dependencies": {
+    "@headlessui/react": "^2.2.0",
+    "@heroicons/react": "^2.2.0",
     "better-sqlite3": "^11.8.1",
     "next": "^15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@headlessui/react": "^2.2.0",
-    "@heroicons/react": "^2.2.0",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22",
     "@types/react": "^19",

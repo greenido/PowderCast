@@ -36,6 +36,7 @@ export function useNWSWeather(lat: number | null, lon: number | null) {
   const [weatherData, setWeatherData] = useState<ProcessedWeatherData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastFetchTime, setLastFetchTime] = useState<number | null>(null);
 
   const fetchWeather = useCallback(async () => {
     if (!lat || !lon) {
@@ -199,13 +200,15 @@ export function useNWSWeather(lat: number | null, lon: number | null) {
       });
       
       setWeatherData(processedWithUrl);
+      const fetchTime = Date.now();
+      setLastFetchTime(fetchTime);
       
       // Cache in localStorage
       log('[NWS API] Caching data to localStorage...');
       const cacheKey = `weather_${lat}_${lon}`;
       localStorage.setItem(cacheKey, JSON.stringify({
         data: processedWithUrl,
-        timestamp: Date.now(),
+        timestamp: fetchTime,
       }));
       log('[NWS API] Data cached successfully with key:', cacheKey);
       log('[NWS API] Fetch completed successfully! ✓');
@@ -233,6 +236,7 @@ export function useNWSWeather(lat: number | null, lon: number | null) {
           // Use cache if less than 1 hour old
           if (cacheAge < 3600000) {
             setWeatherData(data);
+            setLastFetchTime(timestamp);
             setError('Using cached data (offline)');
             log('[NWS API] Using cached data (less than 1 hour old)');
           } else {
@@ -251,13 +255,26 @@ export function useNWSWeather(lat: number | null, lon: number | null) {
   }, [lat, lon]);
 
   useEffect(() => {
+    if (lat && lon) {
+      const cacheKey = `weather_${lat}_${lon}`;
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        try {
+          const { data, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < 3600000) {
+            setWeatherData(data);
+            setLastFetchTime(timestamp);
+          }
+        } catch (e) {}
+      }
+    }
     fetchWeather();
-  }, [fetchWeather]);
+  }, [lat, lon, fetchWeather]);
 
-  return { weatherData, loading, error, refresh: fetchWeather };
+  return { weatherData, loading, error, refresh: fetchWeather, lastFetchTime };
 }
 
-function processWeatherData(data: WeatherData): ProcessedWeatherData {
+export function processWeatherData(data: WeatherData): ProcessedWeatherData {
   log('[NWS Processing] Starting data processing...');
   const { forecast, gridData } = data;
   const periods = forecast.properties.periods;
