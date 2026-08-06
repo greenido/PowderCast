@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SearchBar from '@/components/SearchBar';
 import ElevationToggle from '@/components/ElevationToggle';
 import ResortHeader from '@/components/ResortHeader';
@@ -8,10 +8,13 @@ import WeatherDashboard from '@/components/WeatherDashboard';
 import InstallPWA from '@/components/InstallPWA';
 import FavoritesList from '@/components/FavoritesList';
 import ComparisonDashboard from '@/components/ComparisonDashboard';
+import PlannerGrid from '@/components/PlannerGrid';
+import UnitsToggle from '@/components/UnitsToggle';
 import { useForecast } from '@/hooks/useForecast';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { ResortsProvider, useResortsContext } from '@/hooks/useResorts';
+import { UnitsProvider, useUnits } from '@/hooks/useUnits';
 import PassFilter from '@/components/PassFilter';
 import { usePassFilter } from '@/hooks/usePassFilter';
 import { filterByPasses } from '@/lib/passes';
@@ -26,11 +29,18 @@ function HomeContent() {
   const [elevation, setElevation] = useState<'base' | 'summit'>('base');
   const [showFavorites, setShowFavorites] = useState(false);
   const [showProView, setShowProView] = useState(false);
-  const [viewMode, setViewMode] = useState<'single' | 'compare'>('single');
+  const [viewMode, setViewMode] = useState<'single' | 'compare' | 'planner'>('single');
   const [comparisonRegion, setComparisonRegion] = useState<RegionCode | 'Favorites'>('us-west');
 
   const { favorites, toggleFavorite, isFavorite, hasFavorites } = useFavorites(allResorts);
   const passFilter = usePassFilter();
+  const { suggestForCountry } = useUnits();
+
+  // Adopt the resort's local convention (°C in the Alps, °F in the US) unless
+  // the rider has picked a system explicitly.
+  useEffect(() => {
+    suggestForCountry(selectedResort?.country);
+  }, [selectedResort?.country, suggestForCountry]);
 
   // Everything downstream of the pass filter sees only resorts the rider can
   // actually use, so search, comparison and the planner all stay consistent.
@@ -88,6 +98,9 @@ function HomeContent() {
             onToggle={passFilter.toggle}
             onClear={passFilter.clear}
           />
+          <div className="mt-3 flex justify-center">
+            <UnitsToggle />
+          </div>
         </div>
 
         {/* View Mode Switcher */}
@@ -121,6 +134,17 @@ function HomeContent() {
             </button>
 
             <button
+              onClick={() => setViewMode('planner')}
+              className={`px-4 sm:px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                viewMode === 'planner'
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md shadow-cyan-500/10'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              🗓️ 7-Day Planner
+            </button>
+
+            <button
               onClick={() => {
                 setViewMode('compare');
                 setComparisonRegion('Favorites');
@@ -141,8 +165,43 @@ function HomeContent() {
           </div>
         </div>
 
-        {/* COMPARISON DASHBOARD MODE */}
-        {viewMode === 'compare' ? (
+        {/* 7-DAY PLANNER MODE */}
+        {viewMode === 'planner' ? (
+          <div className="space-y-6">
+            <div className="flex flex-wrap justify-center gap-2">
+              {regions.map((region) => (
+                <button
+                  key={region.code}
+                  onClick={() => setComparisonRegion(region.code)}
+                  className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
+                    comparisonRegion === region.code
+                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400/30 font-bold'
+                      : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {region.emoji} {region.label}
+                </button>
+              ))}
+            </div>
+
+            <PlannerGrid
+              resorts={
+                comparisonRegion === 'Favorites'
+                  ? favorites
+                  : resortsInRegion(visibleResorts, comparisonRegion, 10)
+              }
+              title={
+                comparisonRegion === 'Favorites'
+                  ? 'Favorites'
+                  : REGION_LABELS[comparisonRegion]
+              }
+              onSelectResort={(resort) => {
+                setSelectedResort(resort);
+                setViewMode('single');
+              }}
+            />
+          </div>
+        ) : viewMode === 'compare' ? (
           <div className="space-y-6">
             {/* Region quick filter buttons */}
             {comparisonRegion !== 'Favorites' && (
@@ -305,7 +364,9 @@ function HomeContent() {
 export default function Home() {
   return (
     <ResortsProvider>
-      <HomeContent />
+      <UnitsProvider>
+        <HomeContent />
+      </UnitsProvider>
     </ResortsProvider>
   );
 }

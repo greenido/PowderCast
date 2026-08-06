@@ -1,7 +1,8 @@
 'use client';
 
 import { EyeIcon } from '@heroicons/react/24/solid';
-import { formatVisibility } from '@/lib/unitConversion';
+import { formatVisibility } from '@/lib/units';
+import { useUnits } from '@/hooks/useUnits';
 
 interface VisibilityCardProps {
   visibility: number;
@@ -10,6 +11,7 @@ interface VisibilityCardProps {
 }
 
 export default function VisibilityCard({ visibility, skyCover, shortForecast }: VisibilityCardProps) {
+  const { units } = useUnits();
   const visibilityLevel = visibility > 9656 ? 'excellent' : visibility > 4828 ? 'good' : 'limited';
   const visibilityColor = 
     visibilityLevel === 'excellent' ? 'text-mountain-success' :
@@ -33,7 +35,7 @@ export default function VisibilityCard({ visibility, skyCover, shortForecast }: 
           <div className="grid grid-cols-2 gap-3 sm:gap-6">
             <div>
               <div className={`metric-large ${visibilityColor}`}>
-                {formatVisibility(visibility)}
+                {formatVisibility(visibility, units)}
               </div>
               <div className="text-xs sm:text-sm text-gray-400 mt-1 capitalize">{visibilityLevel}</div>
             </div>

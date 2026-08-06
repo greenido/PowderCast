@@ -1,5 +1,8 @@
 'use client';
 
+import { useUnits } from '@/hooks/useUnits';
+import { formatTemp } from '@/lib/units';
+
 import { ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/solid';
 
 interface TempRangeCardProps {
@@ -15,6 +18,7 @@ export default function TempRangeCard({
   currentTemp,
   maxPrecipProb24h 
 }: TempRangeCardProps) {
+  const { units } = useUnits();
   const tempRange = maxTemp24h - minTemp24h;
   const precipRisk = maxPrecipProb24h > 70 ? 'high' : maxPrecipProb24h > 40 ? 'moderate' : 'low';
   const precipColor = 
@@ -61,7 +65,7 @@ export default function TempRangeCard({
           </div>
 
           <div className="text-xs sm:text-sm text-gray-300">
-            Current: <span className="text-cyan-400 font-semibold">{Math.round(currentTemp)}°F</span>
+            Current: <span className="text-cyan-400 font-semibold">{formatTemp(currentTemp, units)}</span>
             {maxPrecipProb24h > 50 && (
               <span className="ml-2">
                 • <span className={precipColor}>Precipitation likely</span>

@@ -14,10 +14,11 @@
     "generate:pwa-icons": "node scripts/generate-pwa-icons.js",
     "test:ride-score": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/ride-score.test.ts",
     "test:processing": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/nwsProcessing.test.ts",
-    "test": "yarn test:processing && yarn test:ride-score",
+    "test": "yarn test:processing && yarn test:ride-score && yarn test:units",
     "test:providers": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/providers.test.ts",
     "build:resorts": "node scripts/build-resorts.js",
-    "verify:passes": "node scripts/build-resorts.js --check"
+    "verify:passes": "node scripts/build-resorts.js --check",
+    "test:units": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/units-and-planner.test.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.0",

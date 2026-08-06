@@ -15,6 +15,9 @@ import SnowQualityTag from '@/components/SnowQualityTag';
 import WebcamViewer from '@/components/WebcamViewer';
 import ProView from '@/components/ProView';
 import DataFreshness from '@/components/DataFreshness';
+import FreezingLevelCard from '@/components/FreezingLevelCard';
+import BaseDepthCard from '@/components/BaseDepthCard';
+import WindAspectCard from '@/components/WindAspectCard';
 
 interface WeatherDashboardProps {
   weatherData: ProcessedWeatherData;
@@ -83,6 +86,23 @@ export default function WeatherDashboard({
             />
           </div>
 
+          {/* Mountain intelligence — snow line, base depth, wind loading.
+              Each card hides itself when its provider does not supply the
+              underlying field, so the row collapses gracefully on NWS. */}
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
+            <FreezingLevelCard
+              freezingLevelFt={weatherData.freezingLevelFt}
+              resort={selectedResort}
+            />
+            <BaseDepthCard snowDepthIn={weatherData.snowDepthIn} />
+            <WindAspectCard
+              windDirectionDeg={weatherData.currentWindDirection}
+              windSpeedMph={weatherData.currentWindSpeed}
+              gustMph={weatherData.currentWindGust}
+            />
+          </div>
+
+          {/* Prose forecast — NWS only. */}
           {weatherData.periods.length > 0 && (
             <DetailedForecast periods={weatherData.periods} />
           )}
@@ -96,6 +116,8 @@ export default function WeatherDashboard({
             <SnowQualityTag
               quality={weatherData.snowQuality}
               temperature={weatherData.precipTemp}
+              regionCode={selectedResort.regionCode}
+              hourly={weatherData.hourlySnowForecast}
             />
             <WebcamViewer
               webcamUrl={selectedResort.webcam_url}

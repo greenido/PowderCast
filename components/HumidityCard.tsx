@@ -1,5 +1,8 @@
 'use client';
 
+import { useUnits } from '@/hooks/useUnits';
+import { formatTemp } from '@/lib/units';
+
 import { BeakerIcon } from '@heroicons/react/24/solid';
 
 interface HumidityCardProps {
@@ -9,6 +12,7 @@ interface HumidityCardProps {
 }
 
 export default function HumidityCard({ humidity, dewpoint, temperature }: HumidityCardProps) {
+  const { units } = useUnits();
   const humidityLevel = humidity > 70 ? 'high' : humidity > 40 ? 'moderate' : 'low';
   const humidityColor = 
     humidityLevel === 'high' ? 'text-blue-400' :
@@ -49,7 +53,7 @@ export default function HumidityCard({ humidity, dewpoint, temperature }: Humidi
             
             <div>
               <div className="metric-large text-cyan-300">
-                {Math.round(dewpoint)}°F
+                {formatTemp(dewpoint, units)}
               </div>
               <div className="text-xs sm:text-sm text-gray-400 mt-1">Dewpoint</div>
             </div>
