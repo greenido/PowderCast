@@ -1,327 +1,189 @@
-# 🏂 PowderCast v1.1
+# 🏂 PowderCast v2.0
 
 <p align="center">
   <img src="./public/logo.svg" alt="PowderCast Logo" width="200" height="200"/>
 </p>
 
-**The Ultimate Snowboarder's Weather App**
+**Mountain weather for snowboarders and skiers — worldwide.**
 
 🚀 Try it: [PowderCast](https://greenido.github.io/PowderCast/)
 
-A high-performance web application for US-based snowboarders that leverages the National Weather Service (NWS) API to deliver hyper-local mountain weather data.
+Hyper-local forecasts for **722 resorts** across the US, Alps, Dolomites,
+Pyrenees and Japan, with ski-pass awareness so you only see mountains you can
+actually ride.
 
-![PowderCast Banner](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
+![Next.js](https://img.shields.io/badge/Next.js-15-black?style=for-the-badge&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=for-the-badge&logo=typescript)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind-3-38bdf8?style=for-the-badge&logo=tailwind-css)
 
 ## ✨ Features
 
-### Core Functionality
+### Planning
+- **🗓️ 7-Day Planner** — every resort in a region × every day, ranked, so the
+  best mountain *and* the best day are visible at once
+- **🎫 Pass filter** — tag your Ikon / Epic / Mountain Collective pass and the
+  whole app narrows to resorts it covers
+- **📊 Region comparison** — side-by-side conditions and Ride Scores
 
-- **🔍 Smart Autocomplete Search**: Search across 22+ major US ski resorts with instant results
-- **🏔️ Dual-Point Forecasting**: Toggle between base and summit weather conditions
-- **📊 The "Big Three" Metrics**:
-  - 🌨️ Snow Accumulation (24h & 7-day totals)
-  - 💨 Wind Gusts (with lift closure warnings)
-  - 👁️ Visibility & Cloud Cover
+### Conditions
+- **🌡️ Snow line** — where the freezing level sits relative to base and summit,
+  i.e. whether it's raining at the bottom. The most important number in the
+  Alps and the maritime US ranges.
+- **❄️ Snow forecast** — 24h / 7-day accumulation with hourly detail
+- **🏔️ Base depth** — settled snow already on the ground
+- **💨 Wind & aspect** — which aspects are wind-loaded (deep) and which are
+  scoured (firm)
+- **🎿 Snow quality** — regionally named: Pulverschnee / Sulz in the Alps,
+  JaPow in Japan, Sierra Cement in Tahoe
+- **🌽 Firn window** — detects the overnight-freeze → daytime-thaw spring corn
+  cycle and tells you when to be on it
+- **🥶 Wind chill & frostbite warnings**, **💨 wind-hold risk**, **☀️ bluebird**
 
-### Advanced Rider Intelligence
+### Everything else
+- **📏 Metric or imperial**, defaulting to the resort's local convention
+- **📱 PWA** — installable, works offline against cached conditions
+- **⭐ Favourites** and visibility-aware auto-refresh
 
-| Feature | Description |
-|---------|-------------|
-| ❄️ **Powder Alert** | Triggered when 6"+ of snow in 24 hours |
-| ☀️ **Bluebird Indicator** | Clear skies (<25% cloud) + calm winds (<15 mph) |
-| 🏂 **Snow Quality** | Predicts "Champagne Powder", "Sierra Cement", "Ice Coast", etc. |
-| 🥶 **Frostbite Warning** | Wind chill alerts with safety recommendations |
-| 📹 **Live Webcams** | Direct links to resort camera feeds |
+## 🌍 Data sources
 
-### Snow Quality Logic
+| Region | Provider | Model |
+|---|---|---|
+| United States | National Weather Service | NDFD gridpoints |
+| French Alps, Pyrenees | Open-Meteo | Météo-France AROME (1.5km) |
+| Switzerland, Austria, Dolomites | Open-Meteo | DWD ICON-D2 (2km) |
+| Japan | Open-Meteo | JMA Seamless (5km) |
+| Scandinavia | Open-Meteo | MET Norway Nordic (1km) |
 
-Temperature-based snow quality predictions:
+Provider selection is automatic by coordinate, with Open-Meteo as the fallback
+if NWS is unavailable. Neither provider needs an API key, so the app remains a
+pure static deployment.
 
-- **< 15°F**: Champagne Powder ❄️ (Ultra light/dry)
-- **15°F - 26°F**: Premium Packed 🏂 (Standard dry snow)
-- **27°F - 34°F**: Sierra Cement 💪 (Heavy, wet, great for jumps)
-- **> 34°F**: Mashtatoes/Slush ☀️ (Spring conditions)
+Resort data comes from [OpenSkiMap](https://openskimap.org), an OpenStreetMap
+-derived open dataset which supplies real min/max piste elevations.
 
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Node.js 20.19+ or 22.13+ (recommended: 22.13+) and Yarn
-- NVM (Node Version Manager) - [Install instructions](https://github.com/nvm-sh/nvm#installing-and-updating)
-- macOS/Linux (or Windows with WSL)
-
-### Installation
+## 🚀 Quick start
 
 ```bash
-# Navigate to project directory
-cd /Applications/MAMP/htdocs/weather-snow-1
-
-# Switch to the correct Node version (uses .nvmrc)
 nvm use
-
-# If not installed, install Node 22.13.0
-# nvm install 22.13.0
-
-# Install dependencies
 yarn install
-
-# Setup database
-yarn db:setup
-
-# Seed resort data (22 major US resorts)
-yarn db:seed
-
-# Start development server
+yarn build:resorts
 yarn dev
 ```
 
-The app will be available at **http://localhost:3000**
+Available at **http://localhost:3000**.
 
-## � Deployment to GitHub Pages
+## 🏗️ Architecture
 
-### Automatic Deployment
+```
+app/                     Next.js App Router
+components/              UI
+hooks/
+  useForecast.ts         Single + multi-resort fetching, caching, fallback
+  usePlanner.ts          Resort × day outlook grid
+  useUnits.tsx           Metric/imperial preference
+  usePassFilter.ts       "My pass" preference
+lib/
+  providers/             WeatherProvider implementations + routing
+    nws.ts               US National Weather Service
+    openMeteo.ts         Global, with regional high-res model selection
+  types.ts               Resort + the normalized SI forecast model
+  conditions.ts          Normalized SI → rider-facing display model
+  series.ts              Window reductions over the hourly series
+  planner.ts             Multi-day scoring
+  lapseRate.ts           Elevation correction for providers that need it
+  units.ts               Unit-system-aware formatting
+  snowVocabulary.ts      Region-specific snow terminology
+  passes.ts              Ski pass metadata and filtering
+data/passes.json         Ikon / Epic / Mountain Collective rosters
+scripts/build-resorts.js Regenerates public/resorts.json from OpenSkiMap
+```
 
-This project includes a GitHub Actions workflow that automatically deploys to GitHub Pages on every push to the `main` branch.
+### The normalization rule
 
-### Setup Instructions
+Every provider is converted to **SI immediately on arrival** — °C, mm, km/h, m
+— and converted to the display system exactly once, at the edge.
 
-1. **Push your code to GitHub**:
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit"
-   git branch -M main
-   git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO_NAME.git
-   git push -u origin main
-   ```
+This is not stylistic. Providers disagree in exactly the way that causes silent
+bugs: NWS reports snowfall in **millimetres**, Open-Meteo in **centimetres**,
+and snow depth in **metres**. An earlier version ran NWS millimetres through a
+centimetre conversion and overstated every snow total by 10×, firing Powder
+Alerts on 0.6" of snow. Normalizing once, in the provider, is what prevents
+that class of error from reaching a component.
 
-2. **Enable GitHub Pages**:
-   - Go to your repository on GitHub
-   - Navigate to **Settings → Pages**
-   - Under **Source**, select **GitHub Actions**
+### Elevation
 
-3. **Trigger deployment**:
-   - The workflow will run automatically on push to `main`
-   - Or manually trigger it from **Actions** tab → **Deploy to GitHub Pages** → **Run workflow**
+A resort's base and summit coordinates sit a few hundred metres apart — well
+inside a single NWS 2.5km grid cell. Palisades Tahoe's base and summit both
+resolve to grid `REV 28,94`, so a coordinate-only "dual point" forecast is
+the same forecast twice.
 
-4. **Access your site**:
-   - Your site will be available at: `https://YOUR_USERNAME.github.io/YOUR_REPO_NAME/`
-   - Wait 2-3 minutes for the first deployment to complete
+What actually separates them is **elevation**. Open-Meteo accepts an
+`elevation` parameter and downscales properly; NWS cannot, so a lapse-rate
+correction is applied and the UI labels that view as modelled.
 
-### Manual Deployment
+## 🎫 Ski passes
 
-To build and deploy manually:
+`data/passes.json` carries the Ikon, Epic and Mountain Collective rosters with
+access tiers (unlimited / N days / partner).
+
+> **Pass affiliations change every season.** Resorts join, leave and move
+> between tiers annually. The file records the season it was verified against —
+> re-check it against [ikonpass.com](https://www.ikonpass.com/en/destinations)
+> and [epicpass.com](https://www.epicpass.com) before each winter.
 
 ```bash
-# Build static export
-yarn build
-
-# The output will be in the ./out directory
-# Upload contents to your hosting provider
+yarn verify:passes   # exits non-zero if any roster entry matches no resort
 ```
 
-### Important Notes
-
-- **API Routes**: GitHub Pages is static-only. API routes (`/api/*`) won't work in production. Consider using:
-  - API routes on Vercel/Netlify for backend
-  - Client-side fetching directly from NWS API
-  - Serverless functions on alternative platforms
-
-- **Database**: The SQLite database is included in the build, but data updates require rebuilding
-
-- **basePath**: The workflow automatically handles the base path for repository-based GitHub Pages
-
-## �🛠️ Tech Stack
-
-| Technology | Purpose |
-|------------|---------|
-| **Next.js 15** | React framework with App Router |
-| **TypeScript** | Type-safe development |
-| **Tailwind CSS** | Utility-first styling with glassmorphism |
-| **Headless UI** | Accessible autocomplete component |
-| **better-sqlite3** | Local SQLite database for resorts |
-| **NWS API** | Free, official US weather data |
-
-## 📁 Project Structure
-
-```
-/weather-snow-1
-├── app/
-│   ├── api/
-│   │   ├── weather/route.ts        # NWS API proxy
-│   │   └── resorts/route.ts        # Resort search API
-│   ├── layout.tsx                  # Root layout
-│   ├── page.tsx                    # Main dashboard
-│   └── globals.css                 # Tailwind + custom styles
-├── components/
-│   ├── SearchBar.tsx               # Autocomplete search
-│   ├── ElevationToggle.tsx         # Base/Summit switch
-│   ├── SnowAccumulationCard.tsx    # Snow metrics
-│   ├── WindGustsCard.tsx           # Wind data & warnings
-│   ├── VisibilityCard.tsx          # Visibility & cloud cover
-│   ├── SnowQualityTag.tsx          # Quality prediction
-│   ├── PowderAlert.tsx             # 6"+ snow badge
-│   ├── BluebirdIndicator.tsx       # Perfect day banner
-│   ├── FrostbiteWarning.tsx        # Cold weather alerts
-│   └── WebcamViewer.tsx            # Webcam links
-├── hooks/
-│   ├── useNWSWeather.ts            # Main weather hook
-│   └── useResortSearch.ts          # Search functionality
-├── lib/
-│   ├── database.ts                 # SQLite integration
-│   ├── nwsTypes.ts                 # TypeScript interfaces
-│   ├── unitConversion.ts           # Metric ↔ Imperial
-│   └── snowLogic.ts                # Quality calculations
-├── scripts/
-│   ├── setup-db.js                 # Database initialization
-│   └── seed-db.js                  # Resort data seeding
-└── powdercast.db                   # SQLite database
-```
-
-## 🏔️ Included Resorts
-
-**California** (Tahoe & Mammoth)
-- Palisades Tahoe, Northstar, Heavenly, Kirkwood, Mammoth Mountain
-
-**Colorado** (Summit County & Aspen)
-- Vail, Breckenridge, Keystone, A-Basin, Copper Mountain, Aspen Snowmass
-
-**Utah** (Park City & Wasatch)
-- Park City, Deer Valley, Alta, Snowbird
-
-**Wyoming**
-- Jackson Hole
-
-**Montana**
-- Big Sky
-
-**Vermont**
-- Killington, Stowe
-
-**New Hampshire**
-- Bretton Woods
-
-**Washington**
-- Stevens Pass, Crystal Mountain
-
-## 🌐 API Usage
-
-### Weather Endpoint
-```typescript
-GET /api/weather?lat=39.27&lon=-120.12
-```
-
-### Resort Search
-```typescript
-GET /api/resorts?q=Northstar  // Search by name
-GET /api/resorts?id=northstar-ca  // Get by ID
-GET /api/resorts  // Get all resorts
-```
-
-## 🎨 Design System
-
-### Colors
-```javascript
-mountain: {
-  navy: '#0F172A',      // Background
-  ice: '#22D3EE',       // Primary (cyan-400)
-  powder: '#FFFFFF',    // Text
-  danger: '#EF4444',    // Wind alerts
-  warning: '#F59E0B',   // Caution
-  success: '#10B981'    // Good conditions
-}
-```
-
-### Glassmorphism Classes
-```css
-.glass-card {
-  @apply bg-white/10 backdrop-blur-md border border-white/20 rounded-xl;
-}
-```
+Unmatched entries usually mean one of: the resort is below the size threshold
+(most Midwest Epic hills are), its upstream name changed, or it left the pass.
 
 ## 📝 Scripts
 
 | Command | Description |
-|---------|-------------|
-| `yarn dev` | Start development server |
-| `yarn build` | Build for production |
-| `yarn start` | Start production server |
-| `yarn lint` | Run ESLint |
-| `yarn db:setup` | Initialize database |
-| `yarn db:seed` | Seed resort data |
+|---|---|
+| `yarn dev` | Development server |
+| `yarn build` | Static export to `./out` |
+| `yarn test` | Unit tests (no network) |
+| `yarn test:providers` | Live provider contract tests (hits the network) |
+| `yarn build:resorts` | Regenerate `public/resorts.json` from OpenSkiMap |
+| `yarn build:resorts --refresh` | Re-download the source dataset first |
+| `yarn verify:passes` | Check every pass entry still matches a resort |
 
-## 🔧 Configuration
+## 🧪 Testing
 
-### Environment Variables (Optional)
-Create `.env.local` for custom configuration:
-
-```env
-# No API keys needed - NWS is free!
-NEXT_PUBLIC_APP_NAME=PowderCast
-```
-
-## 📱 Features by Priority
-
-| Priority | Feature | Status |
-|----------|---------|--------|
-| P0 | NWS API Integration | ✅ Complete |
-| P0 | Resort Database (SQLite) | ✅ Complete |
-| P0 | Smart Search | ✅ Complete |
-| P0 | Base/Summit Toggle | ✅ Complete |
-| P0 | Big Three Metrics | ✅ Complete |
-| P1 | Snow Quality Logic | ✅ Complete |
-| P1 | Powder Alert | ✅ Complete |
-| P1 | Wind/Frostbite Warnings | ✅ Complete |
-| P1 | Bluebird Indicator | ✅ Complete |
-| P1 | Webcams | ✅ Complete |
-| P2 | Offline Caching | ✅ Complete |
-| P2 | 7-Day Forecast | ✅ Complete |
-
-## 🚧 Non-Functional Requirements
-
-- **Offline Support**: LocalStorage caching (1-hour validity)
-- **Accessibility**: ARIA labels, high-contrast mode
-- **Performance**: <2s initial load, <500ms API response
-- **Mobile-First**: Responsive design for all screen sizes
-
-## 🐛 Troubleshooting
-
-### Database Issues
 ```bash
-# Reset database
-rm powdercast.db
-yarn db:setup
-yarn db:seed
+yarn test              # 100 assertions, no network
+yarn test:providers    # live contract tests against NWS + Open-Meteo
 ```
 
-### NWS API Errors
-- Check internet connection
-- NWS has rate limits (be reasonable)
-- Some locations may not have grid data
+The unit suite runs against synthetic data and a captured NWS gridpoint
+fixture. Every case corresponds to a bug that actually shipped, so prefer
+adding a case over loosening one.
 
-### TypeScript Errors
-```bash
-# Rebuild type definitions
-yarn build
+## 🗺️ Extending coverage
+
+The forecast layer is already global — adding a country is a two-line change
+in `scripts/build-resorts.js`:
+
+```js
+const COUNTRIES = {
+  NO: { regionCode: 'scandinavia', timezone: 'Europe/Oslo' },
+};
 ```
+
+Then `yarn build:resorts`. Add a matching entry to `REGIONS` in
+`lib/regions.ts` if it needs its own tab, and a regional model to
+`REGIONAL_MODELS` in `lib/providers/openMeteo.ts` if a high-resolution one
+exists for the area.
 
 ## 📄 License
 
-This project is for educational purposes. Weather data provided by the National Weather Service (public domain).
+Educational project. Weather data: NOAA/NWS (public domain) and
+[Open-Meteo](https://open-meteo.com) (CC BY 4.0). Resort data:
+[OpenSkiMap](https://openskimap.org) / OpenStreetMap contributors (ODbL).
 
-## 🙏 Acknowledgments
-
-- **National Weather Service**: Free, reliable weather API
-- **US Ski Resorts**: For inspiring this project
-- **Snowboarders Everywhere**: Keep shredding! 🏂
-
----
-
-**Built with ❄️ by riders, for riders.**
-
-*PowderCast v1.1 - Because every startup gets one miracle, and it's not the UI stack.*
+Not a substitute for official avalanche bulletins or resort snow reports.
 
 ---
 

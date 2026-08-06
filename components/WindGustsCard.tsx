@@ -1,7 +1,8 @@
 'use client';
 
 import { ExclamationTriangleIcon } from '@heroicons/react/24/solid';
-import { formatWind } from '@/lib/unitConversion';
+import { formatWind } from '@/lib/units';
+import { useUnits } from '@/hooks/useUnits';
 import { getWindHoldWarning } from '@/lib/snowLogic';
 
 interface WindGustsCardProps {
@@ -17,6 +18,7 @@ export default function WindGustsCard({
   maxWindGust24h,
   maxWindGust7day,
 }: WindGustsCardProps) {
+  const { units } = useUnits();
   const warning = getWindHoldWarning(maxWindGust24h);
   const isHighWind = warning.level !== 'none';
 
@@ -35,14 +37,14 @@ export default function WindGustsCard({
           <div className="grid grid-cols-2 gap-3 sm:gap-6 mb-3 sm:mb-4">
             <div>
               <div className={`metric-large ${isHighWind ? 'text-mountain-danger' : 'text-orange-400'}`}>
-                {formatWind(currentWindGust)}
+                {formatWind(currentWindGust, units)}
               </div>
               <div className="text-xs sm:text-sm text-gray-400 mt-1">Current Gusts</div>
             </div>
             
             <div>
               <div className={`metric-large ${maxWindGust24h >= 40 ? 'text-mountain-danger' : 'text-orange-300'}`}>
-                {formatWind(maxWindGust24h)}
+                {formatWind(maxWindGust24h, units)}
               </div>
               <div className="text-xs sm:text-sm text-gray-400 mt-1">Max 24h Gusts</div>
             </div>
@@ -60,7 +62,7 @@ export default function WindGustsCard({
           )}
 
           <div className="mt-3 text-xs sm:text-sm text-gray-400">
-            Current Speed: {formatWind(currentWindSpeed)} • 7-Day Max: {formatWind(maxWindGust7day)}
+            Current Speed: {formatWind(currentWindSpeed, units)} • 7-Day Max: {formatWind(maxWindGust7day, units)}
           </div>
         </div>
       </div>

@@ -1,7 +1,8 @@
 'use client';
 
 import { CloudIcon } from '@heroicons/react/24/solid';
-import { formatSnow } from '@/lib/unitConversion';
+import { formatSnow } from '@/lib/units';
+import { useUnits } from '@/hooks/useUnits';
 
 interface SnowAccumulationCardProps {
   snow24h: number;
@@ -9,6 +10,7 @@ interface SnowAccumulationCardProps {
 }
 
 export default function SnowAccumulationCard({ snow24h, snow7day }: SnowAccumulationCardProps) {
+  const { units } = useUnits();
   return (
     <div className="glass-card">
       <div className="flex items-start gap-3 sm:gap-4">
@@ -22,14 +24,14 @@ export default function SnowAccumulationCard({ snow24h, snow7day }: SnowAccumula
           <div className="grid grid-cols-2 gap-3 sm:gap-6">
             <div>
               <div className="metric-large text-cyan-400">
-                {formatSnow(snow24h)}
+                {formatSnow(snow24h, units)}
               </div>
               <div className="text-xs sm:text-sm text-gray-400 mt-1">Next 24 Hours</div>
             </div>
             
             <div>
               <div className="metric-large text-cyan-300">
-                {formatSnow(snow7day)}
+                {formatSnow(snow7day, units)}
               </div>
               <div className="text-xs sm:text-sm text-gray-400 mt-1">Next 7 Days</div>
             </div>

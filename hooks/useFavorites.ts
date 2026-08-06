@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { Resort } from '@/lib/database';
+import type { Resort } from '@/lib/types';
 
 const FAVORITES_KEY = 'powdercast-favorites';
 

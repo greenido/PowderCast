@@ -36,6 +36,14 @@ function createMockWeatherData(overrides: Partial<ProcessedWeatherData> = {}): P
     precipTemp: null,
     gridDataUrl: 'https://api.weather.gov/gridpoints/MOCK/1,1',
     hourlySnowForecast: [],
+    currentWindDirection: null,
+    snow48h: 0,
+    freezingLevelFt: null,
+    snowDepthIn: null,
+    windChill: 22,
+    source: 'nws',
+    attribution: 'test fixture',
+    forecastElevationFt: 8000,
     ...overrides,
   };
 }

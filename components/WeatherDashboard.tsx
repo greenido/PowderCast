@@ -1,7 +1,7 @@
 'use client';
 
 import type { ProcessedWeatherData } from '@/lib/nwsTypes';
-import type { Resort } from '@/lib/database';
+import type { Resort } from '@/lib/types';
 import AlertsSection from '@/components/AlertsSection';
 import SnowAccumulationCard from '@/components/SnowAccumulationCard';
 import WindGustsCard from '@/components/WindGustsCard';
@@ -15,6 +15,9 @@ import SnowQualityTag from '@/components/SnowQualityTag';
 import WebcamViewer from '@/components/WebcamViewer';
 import ProView from '@/components/ProView';
 import DataFreshness from '@/components/DataFreshness';
+import FreezingLevelCard from '@/components/FreezingLevelCard';
+import BaseDepthCard from '@/components/BaseDepthCard';
+import WindAspectCard from '@/components/WindAspectCard';
 
 interface WeatherDashboardProps {
   weatherData: ProcessedWeatherData;
@@ -83,7 +86,26 @@ export default function WeatherDashboard({
             />
           </div>
 
-          <DetailedForecast periods={weatherData.periods} />
+          {/* Mountain intelligence — snow line, base depth, wind loading.
+              Each card hides itself when its provider does not supply the
+              underlying field, so the row collapses gracefully on NWS. */}
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
+            <FreezingLevelCard
+              freezingLevelFt={weatherData.freezingLevelFt}
+              resort={selectedResort}
+            />
+            <BaseDepthCard snowDepthIn={weatherData.snowDepthIn} />
+            <WindAspectCard
+              windDirectionDeg={weatherData.currentWindDirection}
+              windSpeedMph={weatherData.currentWindSpeed}
+              gustMph={weatherData.currentWindGust}
+            />
+          </div>
+
+          {/* Prose forecast — NWS only. */}
+          {weatherData.periods.length > 0 && (
+            <DetailedForecast periods={weatherData.periods} />
+          )}
 
           <HourlySnowForecast hourlyData={weatherData.hourlySnowForecast} />
 
@@ -94,6 +116,8 @@ export default function WeatherDashboard({
             <SnowQualityTag
               quality={weatherData.snowQuality}
               temperature={weatherData.precipTemp}
+              regionCode={selectedResort.regionCode}
+              hourly={weatherData.hourlySnowForecast}
             />
             <WebcamViewer
               webcamUrl={selectedResort.webcam_url}
@@ -101,7 +125,8 @@ export default function WeatherDashboard({
             />
           </div>
 
-          {/* 7-Day Forecast */}
+          {/* 7-Day Forecast — narrative periods, NWS only */}
+          {weatherData.periods.length > 0 && (
           <div className="glass-card">
             <h3 className="metric-label mb-4 sm:mb-6">7-Day Forecast</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -128,6 +153,7 @@ export default function WeatherDashboard({
               ))}
             </div>
           </div>
+          )}
         </>
       )}
 
@@ -143,7 +169,10 @@ export default function WeatherDashboard({
           loading={loading}
         />
         <div className="text-center text-[10px] text-gray-600 uppercase tracking-wider mt-2 font-semibold">
-          Data provided by the National Weather Service
+          Data provided by {weatherData.attribution}
+          {weatherData.model && (
+            <span className="normal-case tracking-normal"> · {weatherData.model}</span>
+          )}
         </div>
       </div>
     </>

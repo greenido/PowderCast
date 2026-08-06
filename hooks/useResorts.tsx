@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
-import type { Resort } from '@/lib/database';
+import type { Resort } from '@/lib/types';
 
 interface ResortsContextValue {
   allResorts: Resort[];

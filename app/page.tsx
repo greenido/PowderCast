@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import SearchBar from '@/components/SearchBar';
 import ElevationToggle from '@/components/ElevationToggle';
 import ResortHeader from '@/components/ResortHeader';
@@ -8,11 +8,18 @@ import WeatherDashboard from '@/components/WeatherDashboard';
 import InstallPWA from '@/components/InstallPWA';
 import FavoritesList from '@/components/FavoritesList';
 import ComparisonDashboard from '@/components/ComparisonDashboard';
-import { useNWSWeather } from '@/hooks/useNWSWeather';
+import PlannerGrid from '@/components/PlannerGrid';
+import UnitsToggle from '@/components/UnitsToggle';
+import { useForecast } from '@/hooks/useForecast';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { ResortsProvider, useResortsContext } from '@/hooks/useResorts';
-import type { Resort } from '@/lib/database';
+import { UnitsProvider, useUnits } from '@/hooks/useUnits';
+import PassFilter from '@/components/PassFilter';
+import { usePassFilter } from '@/hooks/usePassFilter';
+import { filterByPasses } from '@/lib/passes';
+import { availableRegions, resortsInRegion, REGION_LABELS } from '@/lib/regions';
+import type { Resort, RegionCode } from '@/lib/types';
 import { StarIcon, BeakerIcon } from '@heroicons/react/24/solid';
 
 function HomeContent() {
@@ -22,37 +29,40 @@ function HomeContent() {
   const [elevation, setElevation] = useState<'base' | 'summit'>('base');
   const [showFavorites, setShowFavorites] = useState(false);
   const [showProView, setShowProView] = useState(false);
-  const [viewMode, setViewMode] = useState<'single' | 'compare'>('single');
-  const [comparisonRegion, setComparisonRegion] = useState<string>('Lake Tahoe');
+  const [viewMode, setViewMode] = useState<'single' | 'compare' | 'planner'>('single');
+  const [comparisonRegion, setComparisonRegion] = useState<RegionCode | 'Favorites'>('us-west');
 
   const { favorites, toggleFavorite, isFavorite, hasFavorites } = useFavorites(allResorts);
+  const passFilter = usePassFilter();
+  const { suggestForCountry } = useUnits();
 
-  // Extract unique regions
-  const regions = Array.from(new Set(allResorts.map((r) => r.region)))
-    .filter(Boolean)
-    .sort();
+  // Adopt the resort's local convention (°C in the Alps, °F in the US) unless
+  // the rider has picked a system explicitly.
+  useEffect(() => {
+    suggestForCountry(selectedResort?.country);
+  }, [selectedResort?.country, suggestForCountry]);
 
-  const lat = selectedResort
-    ? elevation === 'base'
-      ? selectedResort.base_lat
-      : selectedResort.summit_lat
-    : null;
+  // Everything downstream of the pass filter sees only resorts the rider can
+  // actually use, so search, comparison and the planner all stay consistent.
+  const visibleResorts = filterByPasses(allResorts, passFilter.selected);
+  const regions = availableRegions(visibleResorts);
 
-  const lon = selectedResort
-    ? elevation === 'base'
-      ? selectedResort.base_lon
-      : selectedResort.summit_lon
-    : null;
-
-  const { weatherData, loading, error, refresh, lastFetchTime } = useNWSWeather(lat, lon);
+  const {
+    conditions: weatherData,
+    loading,
+    error,
+    refresh,
+    lastFetchTime,
+  } = useForecast(selectedResort, elevation);
 
   // Wire up visibility-aware auto-refresh (15 minutes) for active mountain view
   useAutoRefresh(refresh, 900000, lastFetchTime);
 
   // Determine which resorts to compare
-  const compareResorts = comparisonRegion === 'Favorites'
-    ? favorites
-    : allResorts.filter((r) => r.region === comparisonRegion);
+  const compareResorts =
+    comparisonRegion === 'Favorites'
+      ? favorites
+      : resortsInRegion(visibleResorts, comparisonRegion);
 
   return (
     <main className="min-h-screen p-4 sm:p-6 md:p-8 lg:p-12">
@@ -80,6 +90,19 @@ function HomeContent() {
           )}
         </div>
 
+        {/* Pass filter — the question that decides where people actually ski */}
+        <div className="mb-6">
+          <PassFilter
+            resorts={allResorts}
+            selected={passFilter.selected}
+            onToggle={passFilter.toggle}
+            onClear={passFilter.clear}
+          />
+          <div className="mt-3 flex justify-center">
+            <UnitsToggle />
+          </div>
+        </div>
+
         {/* View Mode Switcher */}
         <div className="flex justify-center mb-8">
           <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 backdrop-blur-md shadow-inner text-sm">
@@ -97,8 +120,8 @@ function HomeContent() {
             <button
               onClick={() => {
                 setViewMode('compare');
-                if (comparisonRegion === 'Favorites' && favorites.length === 0) {
-                  setComparisonRegion(regions[0] || 'Lake Tahoe');
+                if (comparisonRegion === 'Favorites') {
+                  setComparisonRegion(regions[0]?.code ?? 'us-west');
                 }
               }}
               className={`px-4 sm:px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
@@ -108,6 +131,17 @@ function HomeContent() {
               }`}
             >
               📊 Compare Regions
+            </button>
+
+            <button
+              onClick={() => setViewMode('planner')}
+              className={`px-4 sm:px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
+                viewMode === 'planner'
+                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md shadow-cyan-500/10'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+            >
+              🗓️ 7-Day Planner
             </button>
 
             <button
@@ -131,23 +165,58 @@ function HomeContent() {
           </div>
         </div>
 
-        {/* COMPARISON DASHBOARD MODE */}
-        {viewMode === 'compare' ? (
+        {/* 7-DAY PLANNER MODE */}
+        {viewMode === 'planner' ? (
+          <div className="space-y-6">
+            <div className="flex flex-wrap justify-center gap-2">
+              {regions.map((region) => (
+                <button
+                  key={region.code}
+                  onClick={() => setComparisonRegion(region.code)}
+                  className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
+                    comparisonRegion === region.code
+                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400/30 font-bold'
+                      : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {region.emoji} {region.label}
+                </button>
+              ))}
+            </div>
+
+            <PlannerGrid
+              resorts={
+                comparisonRegion === 'Favorites'
+                  ? favorites
+                  : resortsInRegion(visibleResorts, comparisonRegion, 10)
+              }
+              title={
+                comparisonRegion === 'Favorites'
+                  ? 'Favorites'
+                  : REGION_LABELS[comparisonRegion]
+              }
+              onSelectResort={(resort) => {
+                setSelectedResort(resort);
+                setViewMode('single');
+              }}
+            />
+          </div>
+        ) : viewMode === 'compare' ? (
           <div className="space-y-6">
             {/* Region quick filter buttons */}
             {comparisonRegion !== 'Favorites' && (
               <div className="flex flex-wrap justify-center gap-2 mb-6">
                 {regions.map((region) => (
                   <button
-                    key={region}
-                    onClick={() => setComparisonRegion(region)}
+                    key={region.code}
+                    onClick={() => setComparisonRegion(region.code)}
                     className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
-                      comparisonRegion === region
+                      comparisonRegion === region.code
                         ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400/30 font-bold shadow-md shadow-cyan-500/5'
                         : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white'
                     }`}
                   >
-                    {region}
+                    {region.emoji} {region.label}
                   </button>
                 ))}
               </div>
@@ -175,7 +244,7 @@ function HomeContent() {
                   setSelectedResort(resort);
                   setViewMode('single');
                 }}
-                title={comparisonRegion}
+                title={comparisonRegion === 'Favorites' ? 'Favorites' : REGION_LABELS[comparisonRegion]}
               />
             )}
           </div>
@@ -189,6 +258,7 @@ function HomeContent() {
                 selectedResort={selectedResort}
                 isFavorite={isFavorite}
                 onToggleFavorite={toggleFavorite}
+                passes={passFilter.selected}
               />
             </div>
 
@@ -202,7 +272,7 @@ function HomeContent() {
                   including snow quality predictions, wind hold alerts, and rider intelligence.
                 </p>
                 <div className="mt-6 sm:mt-8 text-xs sm:text-sm text-gray-500 px-4">
-                  Powered by the National Weather Service API • Covering 22+ major US resorts • Made by{' '}
+                  {allResorts.length}+ resorts across the US, Alps, Dolomites, Pyrenees & Japan • Made by{' '}
                   <a href="https://greenido.wordpress.com" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">
                     @greenido
                   </a>
@@ -225,6 +295,7 @@ function HomeContent() {
                   onToggle={setElevation}
                   baseElevation={selectedResort.base_elevation}
                   summitElevation={selectedResort.summit_elevation}
+                  source={weatherData?.source}
                 />
 
                 {/* Pro View Toggle */}
@@ -294,7 +365,9 @@ function HomeContent() {
 export default function Home() {
   return (
     <ResortsProvider>
-      <HomeContent />
+      <UnitsProvider>
+        <HomeContent />
+      </UnitsProvider>
     </ResortsProvider>
   );
 }

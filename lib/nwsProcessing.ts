@@ -1,7 +1,7 @@
 /**
  * Pure processing helpers for NWS gridpoint data.
  *
- * Extracted from useNWSWeather so the math can be unit-tested without React.
+ * Extracted from the weather hook so the math can be unit-tested without React.
  *
  * Two things about the NWS gridpoint API drive most of the design here:
  *
