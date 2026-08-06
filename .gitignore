@@ -39,3 +39,6 @@ next-env.d.ts
 *.db-journal
 powdercast.db
 blog-post-1.md
+
+# generated / downloaded data
+/.cache

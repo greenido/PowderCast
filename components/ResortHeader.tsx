@@ -1,6 +1,7 @@
 'use client';
 
 import type { Resort } from '@/lib/types';
+import { PassBadgeList } from '@/components/PassBadge';
 import { StarIcon } from '@heroicons/react/24/solid';
 
 interface ResortHeaderProps {
@@ -37,8 +38,9 @@ export default function ResortHeader({
             </button>
           </div>
           <p className="text-sm sm:text-base text-gray-400">
-            {resort.region}, {resort.state}
+            {Array.from(new Set([resort.region, resort.state].filter(Boolean))).join(', ')} · {resort.country}
           </p>
+          <PassBadgeList passes={resort.passes} className="mt-2" />
         </div>
         <div className="text-left sm:text-right">
           <div className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider mb-1">

@@ -5,6 +5,7 @@ import type { Resort } from '@/lib/types';
 import { useMultiForecast } from '@/hooks/useForecast';
 import { calculateRideScore, getRideScoreLabel } from '@/lib/rideScore';
 import { getSnowQualityInfo } from '@/lib/snowLogic';
+import { PassBadgeList } from '@/components/PassBadge';
 import { 
   StarIcon, 
   ArrowPathIcon, 
@@ -202,6 +203,7 @@ export default function ComparisonDashboard({ resorts, onSelectResort, title }: 
                     <div>
                       <h3 className="text-lg font-bold text-white leading-tight tracking-wide">{resort.name}</h3>
                       <p className="text-xs text-gray-400 mt-0.5">{resort.region}</p>
+                      <PassBadgeList passes={resort.passes} size="compact" className="mt-1.5" />
                     </div>
                     <span className="text-xs text-gray-300 bg-white/10 px-2.5 py-0.5 rounded-full font-bold border border-white/5">
                       {resort.state}

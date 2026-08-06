@@ -83,7 +83,9 @@ export default function WeatherDashboard({
             />
           </div>
 
-          <DetailedForecast periods={weatherData.periods} />
+          {weatherData.periods.length > 0 && (
+            <DetailedForecast periods={weatherData.periods} />
+          )}
 
           <HourlySnowForecast hourlyData={weatherData.hourlySnowForecast} />
 
@@ -101,7 +103,8 @@ export default function WeatherDashboard({
             />
           </div>
 
-          {/* 7-Day Forecast */}
+          {/* 7-Day Forecast — narrative periods, NWS only */}
+          {weatherData.periods.length > 0 && (
           <div className="glass-card">
             <h3 className="metric-label mb-4 sm:mb-6">7-Day Forecast</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
@@ -128,6 +131,7 @@ export default function WeatherDashboard({
               ))}
             </div>
           </div>
+          )}
         </>
       )}
 
@@ -143,7 +147,10 @@ export default function WeatherDashboard({
           loading={loading}
         />
         <div className="text-center text-[10px] text-gray-600 uppercase tracking-wider mt-2 font-semibold">
-          Data provided by the National Weather Service
+          Data provided by {weatherData.attribution}
+          {weatherData.model && (
+            <span className="normal-case tracking-normal"> · {weatherData.model}</span>
+          )}
         </div>
       </div>
     </>

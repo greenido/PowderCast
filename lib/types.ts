@@ -58,6 +58,8 @@ export interface Resort {
 
   webcam_url: string | null;
   website_url?: string | null;
+  /** Total pisted run length in km — a decent proxy for resort size. */
+  runsKm?: number;
   passes?: PassAffiliation[];
   created_at?: string;
 }

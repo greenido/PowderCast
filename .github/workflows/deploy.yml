@@ -24,20 +24,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'yarn'
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      - name: Setup database
-        run: yarn db:setup
-
-      - name: Seed resort data
-        run: yarn db:seed
-
-      - name: Generate static resorts JSON
-        run: yarn generate:resorts
+      - name: Run unit tests
+        run: yarn test
 
       - name: Build Next.js static export
         run: yarn build
