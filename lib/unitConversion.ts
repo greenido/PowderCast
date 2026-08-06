@@ -22,6 +22,17 @@ export function cmToInches(cm: number): number {
 }
 
 /**
+ * Convert millimeters to inches.
+ *
+ * NWS grid data reports `snowfallAmount` in millimetres (`wmoUnit:mm`), NOT
+ * centimetres. Feeding those values through cmToInches overstates snowfall by
+ * exactly 10x, so always use this for raw NWS snow values.
+ */
+export function mmToInches(mm: number): number {
+  return mm / 25.4;
+}
+
+/**
  * Convert inches to centimeters
  */
 export function inchesToCm(inches: number): number {

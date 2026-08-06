@@ -1,14 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { 
-  WeatherData, 
-  ProcessedWeatherData, 
-  NWSGridDataValue,
-  HourlySnowData
+import type {
+  WeatherData,
+  ProcessedWeatherData,
+  HourlySnowData,
 } from '@/lib/nwsTypes';
-import { 
-  cmToInches, 
-  parseWindSpeed, 
-  calculateWindChill 
+import {
+  mmToInches,
+  celsiusToFahrenheit,
+  kmhToMph,
+  parseWindSpeed,
+  calculateWindChill,
 } from '@/lib/unitConversion';
 import {
   determineSnowQuality,
@@ -19,17 +20,31 @@ import {
 } from '@/lib/snowLogic';
 import type { SnowQuality } from '@/lib/snowLogic';
 import { fetchWithRetry } from '@/lib/fetchWithRetry';
+import {
+  sumAccumulationForward,
+  getMaxForward,
+  getAverageForward,
+  getRangeForward,
+  getValueAt,
+  getSnowWeightedTempC,
+  buildHourlyBuckets,
+} from '@/lib/nwsProcessing';
 
-const ENABLE_DETAILED_LOGS = process.env.NODE_ENV !== 'production';
+const CACHE_TTL_MS = 3_600_000; // 1 hour
+const NWS_API_BASE = 'https://api.weather.gov';
 
-function log(...args: any[]) {
-  if (ENABLE_DETAILED_LOGS) {
-    console.log(...args);
-  }
-}
+// Note: browsers refuse to let fetch set User-Agent, so this header is dropped
+// in the client. It is kept for the Node-based test harness, which can send it,
+// and documents who we are for NWS's benefit.
+const USER_AGENT = 'PowderCast/1.1 (contact@powdercast.app)';
+const NWS_HEADERS = {
+  'User-Agent': USER_AGENT,
+  Accept: 'application/geo+json',
+};
 
-function logError(...args: any[]) {
-  console.error(...args);
+const debug = process.env.NODE_ENV !== 'production';
+function log(...args: unknown[]) {
+  if (debug) console.log(...args);
 }
 
 export function useNWSWeather(lat: number | null, lon: number | null) {
@@ -39,60 +54,24 @@ export function useNWSWeather(lat: number | null, lon: number | null) {
   const [lastFetchTime, setLastFetchTime] = useState<number | null>(null);
 
   const fetchWeather = useCallback(async () => {
-    if (!lat || !lon) {
-      log('[NWS API] No coordinates provided, skipping fetch');
-      return;
-    }
+    if (!lat || !lon) return;
 
-    log('[NWS API] ========================================');
-    log('[NWS API] Starting weather fetch');
-    log('[NWS API] Coordinates:', { lat, lon });
-    log('[NWS API] Timestamp:', new Date().toISOString());
-    
     setLoading(true);
     setError(null);
 
+    const cacheKey = `weather_${lat}_${lon}`;
+
     try {
-      // Fetch directly from NWS API (supports CORS)
-      const NWS_API_BASE = 'https://api.weather.gov';
-      const USER_AGENT = 'PowderCast/1.1 (contact@powdercast.app)';
-
-      // Step 1: Get the point data
-      const pointUrl = `${NWS_API_BASE}/points/${lat},${lon}`;
-      log('[NWS API] Step 1: Fetching point data');
-      log('[NWS API] URL:', pointUrl);
-      
-      const pointStartTime = performance.now();
-      const pointResponse = await fetchWithRetry(pointUrl, {
-        headers: {
-          'User-Agent': USER_AGENT,
-          'Accept': 'application/geo+json',
-        },
-      });
-      const pointEndTime = performance.now();
-      
-      log('[NWS API] Point response status:', pointResponse.status);
-      log('[NWS API] Point response time:', `${(pointEndTime - pointStartTime).toFixed(2)}ms`);
-
+      // Step 1: resolve the coordinate to an NWS grid cell.
+      const pointResponse = await fetchWithRetry(
+        `${NWS_API_BASE}/points/${lat},${lon}`,
+        { headers: NWS_HEADERS }
+      );
       if (!pointResponse.ok) {
-        const errorText = await pointResponse.text();
-        logError('[NWS API] Point request failed:', {
-          status: pointResponse.status,
-          statusText: pointResponse.statusText,
-          body: errorText,
-        });
-        throw new Error(`NWS API error: ${pointResponse.status}`);
+        throw new Error(`NWS point lookup failed: ${pointResponse.status}`);
       }
 
       const pointData = await pointResponse.json();
-      log('[NWS API] Point data received:', {
-        forecastUrl: pointData.properties.forecast,
-        gridDataUrl: pointData.properties.forecastGridData,
-        location: {
-          city: pointData.properties.relativeLocation?.properties?.city,
-          state: pointData.properties.relativeLocation?.properties?.state,
-        },
-      });
       const forecastUrl = pointData.properties.forecast;
       const gridDataUrl = pointData.properties.forecastGridData;
       const location = {
@@ -100,155 +79,61 @@ export function useNWSWeather(lat: number | null, lon: number | null) {
         state: pointData.properties.relativeLocation?.properties?.state || 'Unknown',
       };
 
-      // Step 2: Fetch forecast and grid data in parallel
-      log('[NWS API] Step 2: Fetching forecast and grid data in parallel');
-      log('[NWS API] Forecast URL:', forecastUrl);
-      log('[NWS API] Grid Data URL:', gridDataUrl);
-      
-      const parallelStartTime = performance.now();
+      // Step 2: narrative forecast and raw gridpoint data, in parallel.
       const [forecastResponse, gridDataResponse] = await Promise.all([
-        fetchWithRetry(forecastUrl, {
-          headers: {
-            'User-Agent': USER_AGENT,
-            'Accept': 'application/geo+json',
-          },
-        }),
-        fetchWithRetry(gridDataUrl, {
-          headers: {
-            'User-Agent': USER_AGENT,
-            'Accept': 'application/geo+json',
-          },
-        }),
+        fetchWithRetry(forecastUrl, { headers: NWS_HEADERS }),
+        fetchWithRetry(gridDataUrl, { headers: NWS_HEADERS }),
       ]);
-      const parallelEndTime = performance.now();
-      
-      log('[NWS API] Parallel requests completed in:', `${(parallelEndTime - parallelStartTime).toFixed(2)}ms`);
-      log('[NWS API] Forecast response status:', forecastResponse.status);
-      log('[NWS API] Grid data response status:', gridDataResponse.status);
 
       if (!forecastResponse.ok || !gridDataResponse.ok) {
-        const errors = [];
-        if (!forecastResponse.ok) {
-          const errorText = await forecastResponse.text();
-          errors.push(`Forecast: ${forecastResponse.status} - ${errorText}`);
-        }
-        if (!gridDataResponse.ok) {
-          const errorText = await gridDataResponse.text();
-          errors.push(`Grid: ${gridDataResponse.status} - ${errorText}`);
-        }
-        logError('[NWS API] Failed to fetch weather data:', errors);
-        throw new Error('Failed to fetch weather data');
+        throw new Error(
+          `Failed to fetch weather data (forecast ${forecastResponse.status}, grid ${gridDataResponse.status})`
+        );
       }
 
-      log('[NWS API] Parsing JSON responses...');
-      const parseStartTime = performance.now();
       const [forecast, gridData] = await Promise.all([
         forecastResponse.json(),
         gridDataResponse.json(),
       ]);
-      const parseEndTime = performance.now();
-      log('[NWS API] JSON parsing completed in:', `${(parseEndTime - parseStartTime).toFixed(2)}ms`);
-      
-      log('[NWS API] Forecast periods:', forecast.properties.periods?.length || 0);
-      log('[NWS API] Grid data available:', {
-        temperature: !!gridData.properties.temperature,
-        windSpeed: !!gridData.properties.windSpeed,
-        windGust: !!gridData.properties.windGust,
-        snowfallAmount: !!gridData.properties.snowfallAmount,
-        skyCover: !!gridData.properties.skyCover,
-        visibility: !!gridData.properties.visibility,
-      });
-      log('[NWS API] Snow data points:', gridData.properties.snowfallAmount?.values?.length || 0);
-      
-      // Log first 10 snow data points for debugging
-      const snowValues = gridData.properties.snowfallAmount?.values || [];
-      log('[NWS API] ========================================');
-      log('[NWS API] RAW SNOW DATA (first 10 points):');
-      snowValues.slice(0, 10).forEach((val: any, idx: number) => {
-        log(`[NWS API]   [${idx}] time: ${val.validTime}, value: ${val.value}cm`);
-      });
-      log('[NWS API] ========================================');
 
-      const windGustRawValues = gridData.properties.windGust?.values || [];
-      log('[NWS API] RAW WIND GUST DATA (first 10 points):');
-      windGustRawValues.slice(0, 10).forEach((val: any, idx: number) => {
-        const mph = val.value ? (val.value * 0.621371).toFixed(1) : 'null';
-        log(`[NWS API]   [${idx}] time: ${val.validTime}, value: ${val.value} km/h (${mph} mph)`);
-      });
-      log('[NWS API] ========================================');
-
-      const data: WeatherData = { forecast, gridData, location };
-      
-      log('[NWS API] Processing weather data...');
-      const processStartTime = performance.now();
-      const processed = processWeatherData(data);
-      // Add gridDataUrl to processed data
-      const processedWithUrl = {
-        ...processed,
+      const processed = {
+        ...processWeatherData({ forecast, gridData, location }),
         gridDataUrl,
       };
-      const processEndTime = performance.now();
-      log('[NWS API] Data processing completed in:', `${(processEndTime - processStartTime).toFixed(2)}ms`);
-      log('[NWS API] Processed data summary:', {
-        currentTemp: processed.currentTemp,
-        snow24h: processed.snow24h,
-        snow7day: processed.snow7day,
-        hourlyForecastPoints: processed.hourlySnowForecast.length,
-        powderAlert: processed.powderAlert,
-        bluebirdDay: processed.bluebirdDay,
-        gridDataUrl,
+
+      log('[NWS] Processed', {
+        snow24h: processed.snow24h.toFixed(1),
+        snow7day: processed.snow7day.toFixed(1),
+        quality: processed.snowQuality,
+        maxGust24h: processed.maxWindGust24h.toFixed(0),
       });
-      
-      setWeatherData(processedWithUrl);
+
       const fetchTime = Date.now();
+      setWeatherData(processed);
       setLastFetchTime(fetchTime);
-      
-      // Cache in localStorage
-      log('[NWS API] Caching data to localStorage...');
-      const cacheKey = `weather_${lat}_${lon}`;
-      localStorage.setItem(cacheKey, JSON.stringify({
-        data: processedWithUrl,
-        timestamp: fetchTime,
-      }));
-      log('[NWS API] Data cached successfully with key:', cacheKey);
-      log('[NWS API] Fetch completed successfully! ✓');
-      log('[NWS API] ========================================');
+
+      localStorage.setItem(
+        cacheKey,
+        JSON.stringify({ data: processed, timestamp: fetchTime })
+      );
     } catch (err) {
-      logError('[NWS API] ========================================');
-      logError('[NWS API] ERROR occurred during fetch');
-      logError('[NWS API] Error type:', err instanceof Error ? err.constructor.name : typeof err);
-      logError('[NWS API] Error message:', err instanceof Error ? err.message : String(err));
-      logError('[NWS API] Error stack:', err instanceof Error ? err.stack : 'N/A');
-      
+      console.error('[NWS] Fetch failed:', err);
       setError(err instanceof Error ? err.message : 'Unknown error');
-      
-      // Try to load from cache
-      const cacheKey = `weather_${lat}_${lon}`;
-      log('[NWS API] Attempting to load cached data with key:', cacheKey);
+
+      // Fall back to cache so the user still sees something usable offline.
       const cached = localStorage.getItem(cacheKey);
       if (cached) {
         try {
           const { data, timestamp } = JSON.parse(cached);
-          const cacheAge = Date.now() - timestamp;
-          const cacheAgeMinutes = (cacheAge / 60000).toFixed(1);
-          log('[NWS API] Cache found, age:', `${cacheAgeMinutes} minutes`);
-          
-          // Use cache if less than 1 hour old
-          if (cacheAge < 3600000) {
+          if (Date.now() - timestamp < CACHE_TTL_MS) {
             setWeatherData(data);
             setLastFetchTime(timestamp);
             setError('Using cached data (offline)');
-            log('[NWS API] Using cached data (less than 1 hour old)');
-          } else {
-            log('[NWS API] Cache too old (>1 hour), not using');
           }
-        } catch (cacheErr) {
-          logError('[NWS API] Failed to parse cached data:', cacheErr);
+        } catch {
+          // Corrupt cache entry — ignore and surface the original error.
         }
-      } else {
-        log('[NWS API] No cached data available');
       }
-      logError('[NWS API] ========================================');
     } finally {
       setLoading(false);
     }
@@ -256,16 +141,18 @@ export function useNWSWeather(lat: number | null, lon: number | null) {
 
   useEffect(() => {
     if (lat && lon) {
-      const cacheKey = `weather_${lat}_${lon}`;
-      const cached = localStorage.getItem(cacheKey);
+      // Paint cached data immediately, then revalidate.
+      const cached = localStorage.getItem(`weather_${lat}_${lon}`);
       if (cached) {
         try {
           const { data, timestamp } = JSON.parse(cached);
-          if (Date.now() - timestamp < 3600000) {
+          if (Date.now() - timestamp < CACHE_TTL_MS) {
             setWeatherData(data);
             setLastFetchTime(timestamp);
           }
-        } catch (e) {}
+        } catch {
+          // Ignore unparseable cache.
+        }
       }
     }
     fetchWeather();
@@ -274,153 +161,92 @@ export function useNWSWeather(lat: number | null, lon: number | null) {
   return { weatherData, loading, error, refresh: fetchWeather, lastFetchTime };
 }
 
-export function processWeatherData(data: WeatherData): ProcessedWeatherData {
-  log('[NWS Processing] Starting data processing...');
+/**
+ * Turn a raw NWS response into the display model.
+ *
+ * All windows look forward from `now`, because the gridpoint API is a forecast
+ * series with no observational history. See lib/nwsProcessing.ts for detail.
+ */
+export function processWeatherData(
+  data: WeatherData,
+  now: number = Date.now()
+): ProcessedWeatherData {
   const { forecast, gridData } = data;
   const periods = forecast.properties.periods;
+  const props = gridData.properties;
 
-  // Extract current conditions (first period)
   const currentPeriod = periods[0];
   const currentTemp = currentPeriod.temperature;
   const currentWindSpeed = parseWindSpeed(currentPeriod.windSpeed);
-  log('[NWS Processing] Current conditions:', {
-    temp: currentTemp,
-    windSpeed: currentWindSpeed,
-    period: currentPeriod.name,
-  });
 
-  // Get grid data values
-  const windGustValues = gridData.properties.windGust?.values || [];
-  const snowValues = gridData.properties.snowfallAmount?.values || [];
-  const tempValues = gridData.properties.temperature?.values || [];
-  const skyCoverValues = gridData.properties.skyCover?.values || [];
-  const visibilityValues = gridData.properties.visibility?.values || [];
-  const dewpointValues = gridData.properties.dewpoint?.values || [];
-  const humidityValues = gridData.properties.relativeHumidity?.values || [];
-  const precipProbValues = gridData.properties.probabilityOfPrecipitation?.values || [];
-  
-  log('[NWS Processing] Grid data values count:', {
-    windGust: windGustValues.length,
-    snow: snowValues.length,
-    temp: tempValues.length,
-    skyCover: skyCoverValues.length,
-    visibility: visibilityValues.length,
-    dewpoint: dewpointValues.length,
-    humidity: humidityValues.length,
-    precipProb: precipProbValues.length,
-  });
+  // --- Current conditions -------------------------------------------------
+  // Read the interval covering `now` rather than values[0]; the series begins
+  // around 12:00Z, so values[0] can be many hours stale by evening.
+  const currentWindGustKmh = getValueAt(props.windGust?.values, now);
+  const currentWindGust =
+    currentWindGustKmh === null ? currentWindSpeed : kmhToMph(currentWindGustKmh);
 
-  // Calculate 24h and 7-day snow accumulation
-  // NOTE: NWS Grid Data API provides FORECAST data (future), not observations (past)
-  // We calculate both NEXT 24h and NEXT 7 days forecasts
-  const now = Date.now();
-  log('[NWS Processing] Calculating snow accumulation...');
-  
-  // Calculate forward-looking forecasts
-  const snow24h = sumSnowfallForward(snowValues, now, 24);
-  const snow7day = sumSnowfallForward(snowValues, now, 168);
-  
-  log('[NWS Processing] Snow accumulation:', {
-    snow24h: `${snow24h.toFixed(2)}" (next 24h)`,
-    snow7day: `${snow7day.toFixed(2)}" (next 7 days)`,
-  });
+  const currentSkyCover = getValueAt(props.skyCover?.values, now) ?? 0;
+  const currentVisibility = getValueAt(props.visibility?.values, now) ?? 16_000;
+  const currentHumidity = getValueAt(props.relativeHumidity?.values, now) ?? 50;
 
-  // Get max wind gusts (looking backward in time)
-  const maxWindGust24h = getMaxValueBackward(windGustValues, now, 24);
-  const maxWindGust7day = getMaxValueBackward(windGustValues, now, 168);
-  log('[NWS Processing] Wind gusts:', {
-    max24h: `${maxWindGust24h.toFixed(1)} mph`,
-    max7day: `${maxWindGust7day.toFixed(1)} mph`,
-  });
+  const dewpointC = getValueAt(props.dewpoint?.values, now);
+  const currentDewpoint =
+    dewpointC === null ? currentTemp - 5 : celsiusToFahrenheit(dewpointC);
 
-  // Get current conditions
-  // NWS grid data windGust values are in km/h - must convert to mph
-  const rawWindGust = windGustValues[0]?.value;
-  const currentWindGust = rawWindGust != null ? rawWindGust * 0.621371 : currentWindSpeed;
-  log('[NWS Processing] Current wind gust:', {
-    rawKmh: rawWindGust ?? 'N/A',
-    convertedMph: currentWindGust.toFixed(1),
-    fallbackToWindSpeed: rawWindGust == null,
-  });
-  const currentSkyCover = skyCoverValues[0]?.value || 0;
-  const currentVisibility = visibilityValues[0]?.value || 16000; // meters
-  const currentDewpoint = dewpointValues[0]?.value 
-    ? (dewpointValues[0].value * 9/5) + 32 // Convert Celsius to Fahrenheit
-    : currentTemp - 5; // Fallback estimate
-  const currentHumidity = humidityValues[0]?.value || 50; // Default 50%
+  // --- Snow accumulation (mm in the API, inches for display) --------------
+  const snow24h = mmToInches(sumAccumulationForward(props.snowfallAmount?.values, now, 24));
+  const snow7day = mmToInches(sumAccumulationForward(props.snowfallAmount?.values, now, 168));
 
-  // Calculate temperature range (next 24h)
-  const tempRange = getTempRange(tempValues, now, 24);
-  const maxTemp24h = tempRange.max;
-  const minTemp24h = tempRange.min;
-  log('[NWS Processing] Temperature range (next 24h):', {
-    max: `${maxTemp24h.toFixed(1)}°F`,
-    min: `${minTemp24h.toFixed(1)}°F`,
-  });
+  // --- Wind ---------------------------------------------------------------
+  const maxWindGust24h = kmhToMph(getMaxForward(props.windGust?.values, now, 24) ?? 0);
+  const maxWindGust7day = kmhToMph(getMaxForward(props.windGust?.values, now, 168) ?? 0);
+  const avgWindSpeed = kmhToMph(getAverageForward(props.windSpeed?.values, now, 24) ?? 0);
 
-  // Get max precipitation probability (next 24h)
-  const maxPrecipProb24h = getMaxValue(precipProbValues, now, 24);
-  log('[NWS Processing] Max precipitation probability (next 24h):', `${maxPrecipProb24h.toFixed(0)}%`);
+  // --- Temperature --------------------------------------------------------
+  const tempRangeC = getRangeForward(props.temperature?.values, now, 24);
+  const maxTemp24h = tempRangeC ? celsiusToFahrenheit(tempRangeC.max) : currentTemp;
+  const minTemp24h = tempRangeC ? celsiusToFahrenheit(tempRangeC.min) : currentTemp;
 
-  // Calculate average wind speed (next 24h)
-  // NWS grid data windSpeed values are in km/h - convert the average to mph
-  const avgWindSpeedKmh = getAverageValue(
-    gridData.properties.windSpeed?.values || [], 
-    now, 
+  const maxPrecipProb24h =
+    getMaxForward(props.probabilityOfPrecipitation?.values, now, 24) ?? 0;
+
+  // --- Snow quality -------------------------------------------------------
+  // Weighted by snowfall so the classification reflects the temperature while
+  // snow is actually falling, not the 24h mean.
+  const precipTempC = getSnowWeightedTempC(
+    props.snowfallAmount?.values,
+    props.temperature?.values,
+    now,
     24
   );
-  const avgWindSpeed = avgWindSpeedKmh * 0.621371;
-  log('[NWS Processing] Average wind speed (next 24h):', {
-    rawKmh: avgWindSpeedKmh.toFixed(1),
-    convertedMph: avgWindSpeed.toFixed(1),
-  });
+  const precipTemp = precipTempC === null ? null : celsiusToFahrenheit(precipTempC);
 
-  // Determine snow quality from temperature during precipitation
-  let precipTemp: number | null = null;
-  let snowQuality: SnowQuality = 'Premium Packed';
-  
-  if (snow24h > 0) {
-    // Get avg temp during snow periods (past 24h)
-    precipTemp = getAverageValueBackward(tempValues, now, 24);
+  let snowQuality: SnowQuality;
+  if (precipTemp !== null) {
     snowQuality = determineSnowQuality(precipTemp);
-    log('[NWS Processing] Snow quality:', {
-      precipTemp: precipTemp ? `${precipTemp.toFixed(1)}°F` : 'N/A',
-      quality: snowQuality,
-    });
   } else {
-    log('[NWS Processing] No snow in past 24h, quality determination skipped');
+    // No snow forecast — classify the existing surface off the current temp.
+    snowQuality = determineSnowQuality(currentTemp);
   }
 
-  // Calculate wind chill
   const windChill = calculateWindChill(currentTemp, currentWindSpeed);
-  log('[NWS Processing] Wind chill:', `${windChill.toFixed(1)}°F`);
 
-  // Check alerts and conditions
-  const powderAlert = isPowderAlert(snow24h);
-  const bluebirdDay = isBluebirdDay(currentSkyCover, currentWindSpeed);
-  const frostbiteRisk = hasFrostbiteRisk(windChill);
-  const windHoldRisk = hasWindHoldRisk(maxWindGust24h);
-  log('[NWS Processing] Alerts & conditions:', {
-    powderAlert,
-    bluebirdDay,
-    frostbiteRisk,
-    windHoldRisk,
-  });
+  const hourlySnowForecast: HourlySnowData[] = buildHourlyBuckets(
+    props.snowfallAmount?.values,
+    props.temperature?.values,
+    props.windSpeed?.values,
+    now,
+    48
+  ).map((bucket) => ({
+    time: bucket.time,
+    hour: bucket.hour,
+    snowfall: bucket.snowfallIn,
+    temperature: bucket.temperatureF,
+    windSpeed: bucket.windSpeedMph,
+    snowQuality: determineSnowQuality(bucket.temperatureF),
+  }));
 
-  // Process hourly snow forecast (next 48 hours)
-  log('[NWS Processing] Processing hourly snow forecast...');
-  const hourlySnowForecast = processHourlySnowForecast(
-    snowValues,
-    tempValues,
-    gridData.properties.windSpeed?.values || []
-  );
-  log('[NWS Processing] Hourly forecast generated:', {
-    totalHours: hourlySnowForecast.length,
-    hoursWithSnow: hourlySnowForecast.filter(h => h.snowfall > 0).length,
-  });
-
-  log('[NWS Processing] Data processing complete! ✓');
-  
   return {
     currentTemp,
     currentWindSpeed,
@@ -439,284 +265,12 @@ export function processWeatherData(data: WeatherData): ProcessedWeatherData {
     maxPrecipProb24h,
     periods,
     snowQuality,
-    windHoldRisk,
-    frostbiteRisk,
-    bluebirdDay,
-    powderAlert,
+    windHoldRisk: hasWindHoldRisk(maxWindGust24h),
+    frostbiteRisk: hasFrostbiteRisk(windChill),
+    bluebirdDay: isBluebirdDay(currentSkyCover, currentWindSpeed),
+    powderAlert: isPowderAlert(snow24h),
     precipTemp,
     hourlySnowForecast,
-    gridDataUrl: '', // Will be set by caller
+    gridDataUrl: '', // Set by the caller, which knows the source URL.
   };
-}
-
-function sumSnowfallBackward(
-  values: NWSGridDataValue[], 
-  currentTime: number, 
-  hours: number
-): number {
-  const startTime = currentTime - (hours * 3600000); // Look backward in time
-  let total = 0;
-  let matchedPoints = 0;
-
-  log(`[Snow Calc BACKWARD] ========================================`);
-  log(`[Snow Calc BACKWARD] Calculating ${hours}h snowfall (looking backward)`);
-  log(`[Snow Calc BACKWARD] Current time: ${new Date(currentTime).toISOString()}`);
-  log(`[Snow Calc BACKWARD] Looking back to: ${new Date(startTime).toISOString()}`);
-  log(`[Snow Calc BACKWARD] Total data points: ${values.length}`);
-
-  for (const val of values) {
-    const time = new Date(val.validTime.split('/')[0]).getTime();
-    const timeStr = new Date(time).toISOString();
-    const inRange = time >= startTime && time <= currentTime;
-    
-    if (val.value && val.value > 0) {
-      log(`[Snow Calc BACKWARD]   Data point: ${timeStr}, value: ${val.value}cm (${cmToInches(val.value).toFixed(2)}"), inRange: ${inRange}`);
-    }
-    
-    if (time >= startTime && time <= currentTime && val.value) {
-      const inches = cmToInches(val.value);
-      total += inches;
-      matchedPoints++;
-      log(`[Snow Calc BACKWARD]   ✓ ADDED: ${inches.toFixed(2)}" (running total: ${total.toFixed(2)}")`);
-    }
-  }
-
-  log(`[Snow Calc BACKWARD] Final total: ${total.toFixed(2)}" from ${matchedPoints} data points`);
-  log(`[Snow Calc BACKWARD] ========================================`);
-
-  return total;
-}
-
-function sumSnowfallForward(
-  values: NWSGridDataValue[], 
-  currentTime: number, 
-  hours: number
-): number {
-  const endTime = currentTime + (hours * 3600000); // Look forward in time
-  let total = 0;
-  let matchedPoints = 0;
-
-  log(`[Snow Calc FORWARD] ========================================`);
-  log(`[Snow Calc FORWARD] Calculating ${hours}h snowfall (looking forward)`);
-  log(`[Snow Calc FORWARD] Current time: ${new Date(currentTime).toISOString()}`);
-  log(`[Snow Calc FORWARD] Looking ahead to: ${new Date(endTime).toISOString()}`);
-  log(`[Snow Calc FORWARD] Total data points: ${values.length}`);
-
-  for (const val of values) {
-    const time = new Date(val.validTime.split('/')[0]).getTime();
-    const timeStr = new Date(time).toISOString();
-    const inRange = time >= currentTime && time <= endTime;
-    
-    if (val.value && val.value > 0) {
-      log(`[Snow Calc FORWARD]   Data point: ${timeStr}, value: ${val.value}cm (${cmToInches(val.value).toFixed(2)}"), inRange: ${inRange}`);
-    }
-    
-    if (time >= currentTime && time <= endTime && val.value) {
-      const inches = cmToInches(val.value);
-      total += inches;
-      matchedPoints++;
-      log(`[Snow Calc FORWARD]   ✓ ADDED: ${inches.toFixed(2)}" (running total: ${total.toFixed(2)}")`);
-    }
-  }
-
-  log(`[Snow Calc FORWARD] Final total: ${total.toFixed(2)}" from ${matchedPoints} data points`);
-  log(`[Snow Calc FORWARD] ========================================`);
-
-  return total;
-}
-
-function getMaxValueBackward(
-  values: NWSGridDataValue[], 
-  currentTime: number, 
-  hours: number
-): number {
-  const startTime = currentTime - (hours * 3600000); // Look backward in time
-  let max = 0;
-
-  for (const val of values) {
-    const time = new Date(val.validTime.split('/')[0]).getTime();
-    if (time >= startTime && time <= currentTime && val.value) {
-      // Convert from km/h to mph if needed
-      const value = val.value * 0.621371;
-      max = Math.max(max, value);
-    }
-  }
-
-  return max;
-}
-
-function getAverageValue(
-  values: NWSGridDataValue[], 
-  fromTime: number, 
-  hours: number
-): number {
-  const endTime = fromTime + (hours * 3600000);
-  const relevantValues: number[] = [];
-
-  for (const val of values) {
-    const time = new Date(val.validTime.split('/')[0]).getTime();
-    if (time >= fromTime && time <= endTime && val.value !== null) {
-      relevantValues.push(val.value);
-    }
-  }
-
-  if (relevantValues.length === 0) return 0;
-  return relevantValues.reduce((a, b) => a + b, 0) / relevantValues.length;
-}
-
-function getAverageValueBackward(
-  values: NWSGridDataValue[], 
-  currentTime: number, 
-  hours: number
-): number {
-  const startTime = currentTime - (hours * 3600000); // Look backward in time
-  const relevantValues: number[] = [];
-
-  for (const val of values) {
-    const time = new Date(val.validTime.split('/')[0]).getTime();
-    if (time >= startTime && time <= currentTime && val.value !== null) {
-      relevantValues.push(val.value);
-    }
-  }
-
-  if (relevantValues.length === 0) return 0;
-  return relevantValues.reduce((a, b) => a + b, 0) / relevantValues.length;
-}
-
-function getTempRange(
-  values: NWSGridDataValue[], 
-  fromTime: number, 
-  hours: number
-): { max: number; min: number } {
-  const endTime = fromTime + (hours * 3600000);
-  let max = -Infinity;
-  let min = Infinity;
-
-  for (const val of values) {
-    const time = new Date(val.validTime.split('/')[0]).getTime();
-    if (time >= fromTime && time <= endTime && val.value !== null) {
-      // Convert from Celsius to Fahrenheit
-      const tempF = (val.value * 9/5) + 32;
-      max = Math.max(max, tempF);
-      min = Math.min(min, tempF);
-    }
-  }
-
-  // If no values found, use reasonable defaults
-  if (max === -Infinity) max = 32;
-  if (min === Infinity) min = 20;
-
-  return { max, min };
-}
-
-function getMaxValue(
-  values: NWSGridDataValue[], 
-  fromTime: number, 
-  hours: number
-): number {
-  const endTime = fromTime + (hours * 3600000);
-  let max = 0;
-
-  for (const val of values) {
-    const time = new Date(val.validTime.split('/')[0]).getTime();
-    if (time >= fromTime && time <= endTime && val.value !== null) {
-      max = Math.max(max, val.value);
-    }
-  }
-
-  return max;
-}
-
-function processHourlySnowForecast(
-  snowValues: NWSGridDataValue[],
-  tempValues: NWSGridDataValue[],
-  windValues: NWSGridDataValue[]
-): HourlySnowData[] {
-  log('[NWS Hourly] Processing hourly forecast for next 48 hours...');
-  const now = Date.now();
-  const hourlyData: HourlySnowData[] = [];
-  const hours = 48; // Next 48 hours
-  
-  let totalSnowProcessed = 0;
-  let hoursWithSnow = 0;
-
-  // Group data by hour
-  for (let i = 0; i < hours; i++) {
-    const hourStart = now + (i * 3600000);
-    const hourEnd = hourStart + 3600000;
-    
-    // Find snow data for this hour
-    let hourlySnow = 0;
-    for (const val of snowValues) {
-      const time = new Date(val.validTime.split('/')[0]).getTime();
-      const duration = parseDuration(val.validTime);
-      const timeEnd = time + duration;
-      
-      if (time >= hourStart && time < hourEnd && val.value) {
-        hourlySnow += cmToInches(val.value);
-      }
-    }
-    
-    if (hourlySnow > 0) {
-      hoursWithSnow++;
-      totalSnowProcessed += hourlySnow;
-    }
-    
-    // Find temperature for this hour
-    let hourlyTemp = 32; // default
-    for (const val of tempValues) {
-      const time = new Date(val.validTime.split('/')[0]).getTime();
-      if (time >= hourStart && time < hourEnd && val.value !== null) {
-        // Convert from Celsius to Fahrenheit
-        hourlyTemp = (val.value * 9/5) + 32;
-        break;
-      }
-    }
-    
-    // Find wind speed for this hour
-    let hourlyWind = 0;
-    for (const val of windValues) {
-      const time = new Date(val.validTime.split('/')[0]).getTime();
-      if (time >= hourStart && time < hourEnd && val.value !== null) {
-        // Convert from km/h to mph
-        hourlyWind = val.value * 0.621371;
-        break;
-      }
-    }
-    
-    // Only include hours with snowfall or first 24 hours
-    if (hourlySnow > 0 || i < 24) {
-      const date = new Date(hourStart);
-      hourlyData.push({
-        time: date.toISOString(),
-        hour: date.getHours(),
-        snowfall: parseFloat(hourlySnow.toFixed(2)),
-        temperature: Math.round(hourlyTemp),
-        windSpeed: Math.round(hourlyWind),
-        snowQuality: determineSnowQuality(hourlyTemp),
-      });
-    }
-  }
-  
-  log('[NWS Hourly] Forecast processing complete:', {
-    totalHours: hourlyData.length,
-    hoursWithSnow,
-    totalSnowForecast: `${totalSnowProcessed.toFixed(2)}"`,
-  });
-
-  return hourlyData;
-}
-
-function parseDuration(validTime: string): number {
-  // NWS format: "2024-01-01T12:00:00+00:00/PT1H" or similar
-  const parts = validTime.split('/');
-  if (parts.length < 2) return 3600000; // default 1 hour
-  
-  const duration = parts[1];
-  const hourMatch = duration.match(/PT(\d+)H/);
-  if (hourMatch) {
-    return parseInt(hourMatch[1]) * 3600000;
-  }
-  
-  return 3600000; // default 1 hour
 }

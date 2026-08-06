@@ -12,6 +12,13 @@ import {
   FireIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/24/solid';
+import { getValueAt, sumAccumulationForward } from '@/lib/nwsProcessing';
+import {
+  celsiusToFahrenheit,
+  mmToInches,
+  metersToFeet,
+  kmhToMph,
+} from '@/lib/unitConversion';
 
 interface GridpointData {
   properties: {
@@ -105,33 +112,19 @@ export default function ProView({ gridpointUrl }: ProViewProps) {
     setExpandedSections(newExpanded);
   };
 
-  const getLatestValue = (values: Array<{ validTime: string; value: number | null }>) => {
-    if (!values || values.length === 0) return null;
-    const latest = values[0];
-    return latest.value;
-  };
+  // Read the interval covering "now" rather than values[0]; the gridpoint
+  // series starts around 12:00Z, so values[0] goes stale as the day goes on.
+  const getLatestValue = (values: Array<{ validTime: string; value: number | null }>) =>
+    getValueAt(values, Date.now());
 
-  const celsiusToFahrenheit = (c: number) => (c * 9/5) + 32;
-  const mmToInches = (mm: number) => mm / 25.4;
-  const metersToFeet = (m: number) => m * 3.28084;
-  const kmhToMph = (kmh: number) => kmh * 0.621371;
   const metersToMiles = (m: number) => m / 1609.34;
 
-  // Helper to sum snowfall within a time range
-  const sumSnowfallInTimeRange = (values: Array<{ validTime: string; value: number | null }>, hours: number) => {
-    const now = Date.now();
-    const endTime = now + (hours * 3600000);
-    let total = 0;
-    
-    for (const val of values) {
-      if (!val.value) continue;
-      const time = new Date(val.validTime.split('/')[0]).getTime();
-      if (time >= now && time <= endTime) {
-        total += val.value;
-      }
-    }
-    return total;
-  };
+  // Prorates multi-hour blocks by their overlap with the window, so a PT6H
+  // block straddling the edge contributes only the part that falls inside.
+  const sumSnowfallInTimeRange = (
+    values: Array<{ validTime: string; value: number | null }>,
+    hours: number
+  ) => sumAccumulationForward(values, Date.now(), hours);
 
   if (!gridpointUrl) {
     return (
