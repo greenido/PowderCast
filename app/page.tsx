@@ -295,6 +295,7 @@ function HomeContent() {
                   onToggle={setElevation}
                   baseElevation={selectedResort.base_elevation}
                   summitElevation={selectedResort.summit_elevation}
+                  source={weatherData?.source}
                 />
 
                 {/* Pro View Toggle */}

@@ -2,6 +2,7 @@ import type { WeatherProvider, ForecastRequest } from './types';
 import type { NormalizedForecast } from '@/lib/types';
 import { NWSProvider } from './nws';
 import { OpenMeteoProvider } from './openMeteo';
+import { applyElevationCorrection } from '@/lib/lapseRate';
 
 export type { WeatherProvider, ForecastRequest } from './types';
 export { NWSProvider } from './nws';
@@ -37,14 +38,28 @@ export function selectProviders(lat: number, lon: number): ProviderSelection {
  * Fetch a forecast, falling back to the secondary provider if the primary
  * fails. NWS gridpoints 500 with some regularity and go down for maintenance;
  * falling through to Open-Meteo beats showing an error.
+ *
+ * When the serving provider cannot resolve elevation (NWS), a lapse-rate
+ * correction is applied so that base and summit actually differ. Without it
+ * the two views return the same numbers: a resort's base and summit sit a few
+ * hundred metres apart, inside a single 2.5km grid cell.
  */
 export async function fetchForecast(
   request: ForecastRequest
 ): Promise<NormalizedForecast> {
   const { primary, fallback } = selectProviders(request.lat, request.lon);
 
+  const serve = async (provider: WeatherProvider) => {
+    const forecast = await provider.fetchForecast(request);
+
+    if (provider.resolvesElevation || request.elevationM === undefined) {
+      return forecast;
+    }
+    return applyElevationCorrection(forecast, request.elevationM);
+  };
+
   try {
-    return await primary.fetchForecast(request);
+    return await serve(primary);
   } catch (err) {
     if (!fallback) throw err;
 
@@ -53,6 +68,6 @@ export async function fetchForecast(
         err instanceof Error ? err.message : err
       }), falling back to ${fallback.id}`
     );
-    return fallback.fetchForecast(request);
+    return serve(fallback);
   }
 }
