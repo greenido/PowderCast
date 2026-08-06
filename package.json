@@ -16,9 +16,10 @@
     "generate:resorts": "node scripts/generate-resorts-json.js",
     "generate:pwa-icons": "node scripts/generate-pwa-icons.js",
     "test:weather-api": "ts-node tests/weather-api.test.ts",
-    "test:verify-fix": "ts-node tests/verify-fix.ts",
     "test:new-features": "ts-node tests/new-features.test.ts",
-    "test:ride-score": "ts-node -O '{\"module\": \"commonjs\"}' tests/ride-score.test.ts"
+    "test:ride-score": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/ride-score.test.ts",
+    "test:processing": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/nwsProcessing.test.ts",
+    "test": "yarn test:processing && yarn test:ride-score"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.0",
@@ -40,6 +41,7 @@
     "sharp": "^0.34.5",
     "tailwindcss": "^3.4.17",
     "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5"
   }
 }
