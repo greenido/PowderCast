@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import type { Resort } from '@/lib/database';
-import { useMultiResortWeather } from '@/hooks/useMultiResortWeather';
+import type { Resort } from '@/lib/types';
+import { useMultiForecast } from '@/hooks/useForecast';
 import { calculateRideScore, getRideScoreLabel } from '@/lib/rideScore';
 import { getSnowQualityInfo } from '@/lib/snowLogic';
 import { 
@@ -22,7 +22,7 @@ interface ComparisonDashboardProps {
 type SortOption = 'rideScore' | 'snowfall' | 'name';
 
 export default function ComparisonDashboard({ resorts, onSelectResort, title }: ComparisonDashboardProps) {
-  const { data, errors, loading, refresh } = useMultiResortWeather(resorts);
+  const { data, errors, loading, refresh } = useMultiForecast(resorts);
   const [sortBy, setSortBy] = useState<SortOption>('rideScore');
 
   // Prepare and enrich the resort list with weather & scores if available

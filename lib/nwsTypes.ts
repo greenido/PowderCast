@@ -1,4 +1,9 @@
-import type { SnowQuality } from '@/lib/snowLogic';
+/**
+ * The display model now lives in lib/conditions.ts and is provider-agnostic.
+ * These aliases keep existing component imports working; prefer importing
+ * RiderConditions directly in new code.
+ */
+export type { RiderConditions as ProcessedWeatherData, HourlySnowData } from '@/lib/conditions';
 
 // NWS API TypeScript Interfaces
 
@@ -104,57 +109,3 @@ export interface WeatherData {
   };
 }
 
-export interface ProcessedWeatherData {
-  // Current conditions
-  currentTemp: number;
-  currentWindSpeed: number;
-  currentWindGust: number;
-  currentVisibility: number;
-  currentSkyCover: number;
-  currentHumidity: number;
-  currentDewpoint: number;
-
-  // Snow accumulation
-  snow24h: number;
-  snow7day: number;
-
-  // Wind data
-  maxWindGust24h: number;
-  maxWindGust7day: number;
-  avgWindSpeed: number;
-
-  // Temperature ranges (next 24h)
-  maxTemp24h: number;
-  minTemp24h: number;
-
-  // Precipitation probability (next 24h)
-  maxPrecipProb24h: number;
-
-  // Forecast periods
-  periods: NWSForecastPeriod[];
-
-  // Calculated metrics
-  snowQuality: SnowQuality;
-  windHoldRisk: boolean;
-  frostbiteRisk: boolean;
-  bluebirdDay: boolean;
-  powderAlert: boolean;
-
-  // Temperature during precipitation
-  precipTemp: number | null;
-
-  // Gridpoint URL for Pro View
-  gridDataUrl: string;
-
-  // Hourly snow forecast
-  hourlySnowForecast: HourlySnowData[];
-}
-
-export interface HourlySnowData {
-  time: string; // ISO timestamp
-  hour: number; // Hour of day (0-23)
-  snowfall: number; // Inches
-  temperature: number; // Fahrenheit
-  windSpeed: number; // mph
-  snowQuality: SnowQuality;
-}

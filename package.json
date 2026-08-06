@@ -19,7 +19,8 @@
     "test:new-features": "ts-node tests/new-features.test.ts",
     "test:ride-score": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/ride-score.test.ts",
     "test:processing": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/nwsProcessing.test.ts",
-    "test": "yarn test:processing && yarn test:ride-score"
+    "test": "yarn test:processing && yarn test:ride-score",
+    "test:providers": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/providers.test.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.0",

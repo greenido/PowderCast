@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Resort } from '@/lib/database';
+import type { Resort } from '@/lib/types';
 import { useResortsContext } from '@/hooks/useResorts';
 
 export function useResortSearch(query: string) {

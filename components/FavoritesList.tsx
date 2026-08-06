@@ -1,7 +1,7 @@
 'use client';
 
 import { StarIcon, XMarkIcon, TrashIcon } from '@heroicons/react/24/solid';
-import type { Resort } from '@/lib/database';
+import type { Resort } from '@/lib/types';
 
 interface FavoritesListProps {
   favorites: Resort[];

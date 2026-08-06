@@ -6,7 +6,7 @@ import { MagnifyingGlassIcon, MapPinIcon } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconOutline } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { useResortSearch } from '@/hooks/useResortSearch';
-import type { Resort } from '@/lib/database';
+import type { Resort } from '@/lib/types';
 
 interface SearchBarProps {
   onSelectResort: (resort: Resort | null) => void;

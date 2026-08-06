@@ -8,11 +8,11 @@ import WeatherDashboard from '@/components/WeatherDashboard';
 import InstallPWA from '@/components/InstallPWA';
 import FavoritesList from '@/components/FavoritesList';
 import ComparisonDashboard from '@/components/ComparisonDashboard';
-import { useNWSWeather } from '@/hooks/useNWSWeather';
+import { useForecast } from '@/hooks/useForecast';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { ResortsProvider, useResortsContext } from '@/hooks/useResorts';
-import type { Resort } from '@/lib/database';
+import type { Resort } from '@/lib/types';
 import { StarIcon, BeakerIcon } from '@heroicons/react/24/solid';
 
 function HomeContent() {
@@ -32,19 +32,13 @@ function HomeContent() {
     .filter(Boolean)
     .sort();
 
-  const lat = selectedResort
-    ? elevation === 'base'
-      ? selectedResort.base_lat
-      : selectedResort.summit_lat
-    : null;
-
-  const lon = selectedResort
-    ? elevation === 'base'
-      ? selectedResort.base_lon
-      : selectedResort.summit_lon
-    : null;
-
-  const { weatherData, loading, error, refresh, lastFetchTime } = useNWSWeather(lat, lon);
+  const {
+    conditions: weatherData,
+    loading,
+    error,
+    refresh,
+    lastFetchTime,
+  } = useForecast(selectedResort, elevation);
 
   // Wire up visibility-aware auto-refresh (15 minutes) for active mountain view
   useAutoRefresh(refresh, 900000, lastFetchTime);

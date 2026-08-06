@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { DocumentTextIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/solid';
-import type { NWSForecastPeriod } from '@/lib/nwsTypes';
+import type { NarrativePeriod } from '@/lib/types';
 
 interface DetailedForecastProps {
-  periods: NWSForecastPeriod[];
+  periods: NarrativePeriod[];
 }
 
 export default function DetailedForecast({ periods }: DetailedForecastProps) {

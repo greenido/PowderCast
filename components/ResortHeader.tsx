@@ -1,6 +1,6 @@
 'use client';
 
-import type { Resort } from '@/lib/database';
+import type { Resort } from '@/lib/types';
 import { StarIcon } from '@heroicons/react/24/solid';
 
 interface ResortHeaderProps {

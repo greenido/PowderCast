@@ -1,7 +1,7 @@
 'use client';
 
 import type { ProcessedWeatherData } from '@/lib/nwsTypes';
-import type { Resort } from '@/lib/database';
+import type { Resort } from '@/lib/types';
 import AlertsSection from '@/components/AlertsSection';
 import SnowAccumulationCard from '@/components/SnowAccumulationCard';
 import WindGustsCard from '@/components/WindGustsCard';
