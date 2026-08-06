@@ -23,7 +23,7 @@ import type { Resort, RegionCode } from '@/lib/types';
 import { StarIcon, BeakerIcon } from '@heroicons/react/24/solid';
 
 function HomeContent() {
-  const { allResorts } = useResortsContext();
+  const { allResorts, resortsLoading, resortsError } = useResortsContext();
 
   const [selectedResort, setSelectedResort] = useState<Resort | null>(null);
   const [elevation, setElevation] = useState<'base' | 'summit'>('base');
@@ -89,6 +89,20 @@ function HomeContent() {
             </div>
           )}
         </div>
+
+        {resortsError && (
+          <div className="glass-card mb-6 border border-red-400/30 text-center">
+            <div className="mb-2 text-3xl">⚠️</div>
+            <h2 className="text-lg font-bold text-white">Could not load the resort list</h2>
+            <p className="mt-1 text-sm text-gray-400">{resortsError}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="mt-4 rounded-lg border border-white/10 bg-white/10 px-5 py-2.5 text-sm font-semibold text-white transition-all hover:bg-white/20"
+            >
+              Reload
+            </button>
+          </div>
+        )}
 
         {/* Pass filter — the question that decides where people actually ski */}
         <div className="mb-6">
@@ -272,7 +286,7 @@ function HomeContent() {
                   including snow quality predictions, wind hold alerts, and rider intelligence.
                 </p>
                 <div className="mt-6 sm:mt-8 text-xs sm:text-sm text-gray-500 px-4">
-                  {allResorts.length}+ resorts across the US, Alps, Dolomites, Pyrenees & Japan • Made by{' '}
+                  {resortsLoading ? 'Loading resorts' : `${allResorts.length} resorts`} across the US, Alps, Dolomites, Pyrenees & Japan • Made by{' '}
                   <a href="https://greenido.wordpress.com" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">
                     @greenido
                   </a>

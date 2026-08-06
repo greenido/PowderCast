@@ -5,9 +5,16 @@ import { filterByPasses } from '@/lib/passes';
 
 const MAX_RESULTS = 12;
 
-/** Fold accents so "Kitzbuhel" finds "Kitzbühel" and "Meribel" finds "Méribel". */
-function normalize(value: string): string {
-  return value
+/**
+ * Fold accents so "Kitzbuhel" finds "Kitzbühel" and "Meribel" finds "Méribel".
+ *
+ * Tolerates missing values. A resort record with a field the current schema
+ * expects but an older cached resorts.json never had must not take down the
+ * whole search — and by extension the whole page.
+ */
+function normalize(value: string | undefined | null): string {
+  if (!value) return '';
+  return String(value)
     .toLowerCase()
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '');
@@ -23,8 +30,11 @@ function normalize(value: string): string {
  */
 function score(resort: Resort, query: string): number {
   const name = normalize(resort.name);
-  const region = normalize(resort.region || '');
-  const state = normalize(resort.state || '');
+  const region = normalize(resort.region);
+  const state = normalize(resort.state);
+  const country = normalize(resort.country);
+
+  if (!name) return 0;
 
   let base = 0;
 
@@ -34,7 +44,7 @@ function score(resort: Resort, query: string): number {
   else if (name.includes(query)) base = 400;
   else if (region.startsWith(query) || state.startsWith(query)) base = 200;
   else if (region.includes(query) || state.includes(query)) base = 100;
-  else if (normalize(resort.country).startsWith(query)) base = 50;
+  else if (country.startsWith(query)) base = 50;
 
   if (base === 0) return 0;
 

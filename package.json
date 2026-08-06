@@ -1,6 +1,6 @@
 {
   "name": "powdercast",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "private": true,
   "engines": {
     "node": ">=20.19.0",
@@ -14,12 +14,13 @@
     "generate:pwa-icons": "node scripts/generate-pwa-icons.js",
     "test:ride-score": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/ride-score.test.ts",
     "test:processing": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/nwsProcessing.test.ts",
-    "test": "yarn test:processing && yarn test:ride-score && yarn test:units && yarn test:elevation",
+    "test": "yarn test:processing && yarn test:ride-score && yarn test:units && yarn test:elevation && yarn test:schema",
     "test:providers": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/providers.test.ts",
     "build:resorts": "node scripts/build-resorts.js",
     "verify:passes": "node scripts/build-resorts.js --check",
     "test:units": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/units-and-planner.test.ts",
-    "test:elevation": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/elevation.test.ts"
+    "test:elevation": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/elevation.test.ts",
+    "test:schema": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/resortSchema.test.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.0",
