@@ -41,7 +41,6 @@ actually ride.
 
 ### Everything else
 - **📏 Metric or imperial**, defaulting to the resort's local convention
-- **📱 PWA** — installable, works offline against cached conditions
 - **⭐ Favourites** and visibility-aware auto-refresh
 
 ## 🌍 Data sources

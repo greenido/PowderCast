@@ -5,7 +5,6 @@ import SearchBar from '@/components/SearchBar';
 import ElevationToggle from '@/components/ElevationToggle';
 import ResortHeader from '@/components/ResortHeader';
 import WeatherDashboard from '@/components/WeatherDashboard';
-import InstallPWA from '@/components/InstallPWA';
 import FavoritesList from '@/components/FavoritesList';
 import ComparisonDashboard from '@/components/ComparisonDashboard';
 import PlannerGrid from '@/components/PlannerGrid';
@@ -381,7 +380,6 @@ function HomeContent() {
         )}
       </div>
 
-      <InstallPWA />
 
       <FavoritesList
         favorites={favorites}
