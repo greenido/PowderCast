@@ -22,6 +22,7 @@ const SOURCE_URL = 'https://tiles.openskimap.org/geojson/ski_areas.geojson';
 const CACHE_PATH = path.join(__dirname, '..', '.cache', 'ski_areas.geojson');
 const OUTPUT_PATH = path.join(__dirname, '..', 'public', 'resorts.json');
 const PASSES_PATH = path.join(__dirname, '..', 'data', 'passes.json');
+const WEBCAMS_PATH = path.join(__dirname, '..', 'data', 'webcams.json');
 
 const METERS_TO_FEET = 3.28084;
 
@@ -289,6 +290,12 @@ async function main() {
   const passesFile = JSON.parse(fs.readFileSync(PASSES_PATH, 'utf8'));
   const passIndex = buildPassIndex(passesFile);
 
+  // OpenSkiMap carries no webcam links, so they come from a hand-checked
+  // overlay keyed by resort id. A resort with no entry keeps webcam_url null
+  // and the UI falls back to its website — better than a guessed URL that
+  // 404s.
+  const webcams = JSON.parse(fs.readFileSync(WEBCAMS_PATH, 'utf8')).webcams;
+
   console.log(`🔍 Scanning ${raw.features.length} ski areas (min ${minRunKm}km of runs)...`);
 
   const resorts = [];
@@ -349,7 +356,7 @@ async function main() {
       summit_lon: Number(point.lon.toFixed(4)),
       summit_elevation: Math.round(maxElevation * METERS_TO_FEET),
 
-      webcam_url: null,
+      webcam_url: webcams[id] || null,
       website_url: props.websites?.[0] || null,
       runsKm: Math.round(totalRunKm(props)),
       passes: passesFor(props.name, country, passIndex, passesFile.season),

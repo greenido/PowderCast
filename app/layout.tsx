@@ -11,13 +11,7 @@ export const metadata: Metadata = {
   description: "Hyper-local mountain weather data for US snowboarders. Get real-time snow quality, wind holds, and rider intelligence.",
   keywords: "snowboard, weather, ski resort, powder, snow forecast, mountain weather",
   viewport: "width=device-width, initial-scale=1, maximum-scale=5",
-  manifest: `${basePath}/manifest.json`,
   themeColor: "#0ea5e9",
-  appleWebApp: {
-    capable: true,
-    statusBarStyle: "black-translucent",
-    title: "PowderCast",
-  },
   icons: {
     icon: [
       { url: `${basePath}/favicon.svg`, type: "image/svg+xml" },

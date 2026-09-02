@@ -4,7 +4,9 @@ import { useState } from 'react';
 import type { Resort } from '@/lib/types';
 import { useMultiForecast } from '@/hooks/useForecast';
 import { calculateRideScore, getRideScoreLabel } from '@/lib/rideScore';
-import { getSnowQualityInfo } from '@/lib/snowLogic';
+import { snowLabel } from '@/lib/snowVocabulary';
+import { useUnits } from '@/hooks/useUnits';
+import { formatTemp, formatWind, formatSnow } from '@/lib/units';
 import { PassBadgeList } from '@/components/PassBadge';
 import { 
   StarIcon, 
@@ -25,6 +27,7 @@ type SortOption = 'rideScore' | 'snowfall' | 'name';
 export default function ComparisonDashboard({ resorts, onSelectResort, title }: ComparisonDashboardProps) {
   const { data, errors, loading, refresh } = useMultiForecast(resorts);
   const [sortBy, setSortBy] = useState<SortOption>('rideScore');
+  const { units } = useUnits();
 
   // Prepare and enrich the resort list with weather & scores if available
   const processedResorts = resorts.map((resort) => {
@@ -189,7 +192,7 @@ export default function ComparisonDashboard({ resorts, onSelectResort, title }: 
           // Render Active Weather Data for this resort
           if (weather) {
             const scoreLabel = getRideScoreLabel(score);
-            const snowInfo = getSnowQualityInfo(weather.snowQuality);
+            const snowInfo = snowLabel(weather.snowQuality, resort.regionCode);
             const isWindHold = weather.windHoldRisk;
 
             return (
@@ -226,7 +229,7 @@ export default function ComparisonDashboard({ resorts, onSelectResort, title }: 
                         {scoreLabel.label}
                       </span>
                       <p className="text-xs text-gray-400 mt-1">
-                        Comfortable riding conditions
+                        {scoreLabel.summary}
                       </p>
                     </div>
                   </div>
@@ -237,7 +240,7 @@ export default function ComparisonDashboard({ resorts, onSelectResort, title }: 
                     <div className="bg-white/5 p-2.5 rounded-lg border border-white/5">
                       <span className="text-gray-400 block mb-0.5">Temp</span>
                       <span className="text-white font-bold text-sm block">
-                        🌡️ {Math.round(weather.currentTemp)}°F
+                        🌡️ {formatTemp(weather.currentTemp, units)}
                       </span>
                     </div>
 
@@ -245,10 +248,10 @@ export default function ComparisonDashboard({ resorts, onSelectResort, title }: 
                     <div className="bg-white/5 p-2.5 rounded-lg border border-white/5">
                       <span className="text-gray-400 block mb-0.5">24h Snow</span>
                       <span className="text-white font-bold text-sm block flex items-center gap-1">
-                        🌨️ {weather.snow24h.toFixed(1)}&quot;
+                        🌨️ {formatSnow(weather.snow24h, units)}
                         {weather.snow24h > 0 && (
                           <span className={`text-[10px] font-bold ${snowInfo.color} shrink-0`}>
-                            ({weather.snowQuality.split(' ')[0]})
+                            ({snowInfo.label})
                           </span>
                         )}
                       </span>
@@ -264,10 +267,10 @@ export default function ComparisonDashboard({ resorts, onSelectResort, title }: 
                       <span className={`font-bold text-sm block flex items-center gap-1 ${
                         isWindHold ? 'text-amber-400' : 'text-white'
                       }`}>
-                        💨 {Math.round(weather.currentWindSpeed)} mph
+                        💨 {formatWind(weather.currentWindSpeed, units)}
                         {weather.currentWindGust > weather.currentWindSpeed && (
                           <span className="text-[10px] font-normal text-gray-400">
-                            ({Math.round(weather.currentWindGust)}g)
+                            ({formatWind(weather.currentWindGust, units)} gust)
                           </span>
                         )}
                       </span>

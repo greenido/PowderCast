@@ -1,20 +1,24 @@
 /**
- * Generate PWA icons from SVG logo
- * Run with: node scripts/generate-pwa-icons.js
- * 
+ * Generate the site icons from public/logo.svg.
+ *
+ * Run with: yarn generate:icons
  * Prerequisites: yarn add -D sharp
+ *
+ * The sizes here are exactly the ones app/layout.tsx references. There used to
+ * be nine, covering every slot a web app manifest can ask for, but the app is
+ * no longer installable and unreferenced icons are just bytes in the deploy.
  */
 
 const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
 
-const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+const sizes = [192, 512];
 const inputSvg = path.join(__dirname, '../public/logo.svg');
 const outputDir = path.join(__dirname, '../public');
 
 async function generateIcons() {
-  console.log('🎨 Generating PWA icons...');
+  console.log('🎨 Generating icons...');
   
   // Check if input file exists
   if (!fs.existsSync(inputSvg)) {
@@ -51,7 +55,7 @@ async function generateIcons() {
 
     await generateFavicon();
 
-    console.log('🎉 All PWA icons generated successfully!');
+    console.log('🎉 All icons generated successfully!');
   } catch (error) {
     console.error('❌ Error generating icons:', error);
     process.exit(1);

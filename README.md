@@ -41,8 +41,8 @@ actually ride.
 
 ### Everything else
 - **📏 Metric or imperial**, defaulting to the resort's local convention
-- **📱 PWA** — installable, works offline against cached conditions
 - **⭐ Favourites** and visibility-aware auto-refresh
+- **📹 Live webcams** for 25 major resorts, resort websites for the other 669
 
 ## 🌍 Data sources
 

@@ -5,10 +5,10 @@ import SearchBar from '@/components/SearchBar';
 import ElevationToggle from '@/components/ElevationToggle';
 import ResortHeader from '@/components/ResortHeader';
 import WeatherDashboard from '@/components/WeatherDashboard';
-import InstallPWA from '@/components/InstallPWA';
 import FavoritesList from '@/components/FavoritesList';
 import ComparisonDashboard from '@/components/ComparisonDashboard';
 import PlannerGrid from '@/components/PlannerGrid';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import UnitsToggle from '@/components/UnitsToggle';
 import { useForecast } from '@/hooks/useForecast';
 import { useFavorites } from '@/hooks/useFavorites';
@@ -49,6 +49,7 @@ function HomeContent() {
 
   const {
     conditions: weatherData,
+    forecast,
     loading,
     error,
     refresh,
@@ -198,22 +199,28 @@ function HomeContent() {
               ))}
             </div>
 
-            <PlannerGrid
-              resorts={
-                comparisonRegion === 'Favorites'
-                  ? favorites
-                  : resortsInRegion(visibleResorts, comparisonRegion, 10)
-              }
-              title={
-                comparisonRegion === 'Favorites'
-                  ? 'Favorites'
-                  : REGION_LABELS[comparisonRegion]
-              }
-              onSelectResort={(resort) => {
-                setSelectedResort(resort);
-                setViewMode('single');
-              }}
-            />
+            <ErrorBoundary label="7-Day Planner">
+
+
+              <PlannerGrid
+                resorts={
+                  comparisonRegion === 'Favorites'
+                    ? favorites
+                    : resortsInRegion(visibleResorts, comparisonRegion, 10)
+                }
+                title={
+                  comparisonRegion === 'Favorites'
+                    ? 'Favorites'
+                    : REGION_LABELS[comparisonRegion]
+                }
+                onSelectResort={(resort) => {
+                  setSelectedResort(resort);
+                  setViewMode('single');
+                }}
+              />
+
+
+            </ErrorBoundary>
           </div>
         ) : viewMode === 'compare' ? (
           <div className="space-y-6">
@@ -252,14 +259,18 @@ function HomeContent() {
                 </button>
               </div>
             ) : (
-              <ComparisonDashboard
-                resorts={compareResorts}
-                onSelectResort={(resort) => {
-                  setSelectedResort(resort);
-                  setViewMode('single');
-                }}
-                title={comparisonRegion === 'Favorites' ? 'Favorites' : REGION_LABELS[comparisonRegion]}
-              />
+              <ErrorBoundary label="Comparison">
+
+                <ComparisonDashboard
+                  resorts={compareResorts}
+                  onSelectResort={(resort) => {
+                    setSelectedResort(resort);
+                    setViewMode('single');
+                  }}
+                  title={comparisonRegion === 'Favorites' ? 'Favorites' : REGION_LABELS[comparisonRegion]}
+                />
+
+              </ErrorBoundary>
             )}
           </div>
         ) : (
@@ -267,13 +278,17 @@ function HomeContent() {
           <div className="space-y-8">
             {/* Search Bar */}
             <div className="mb-4">
-              <SearchBar
-                onSelectResort={setSelectedResort}
-                selectedResort={selectedResort}
-                isFavorite={isFavorite}
-                onToggleFavorite={toggleFavorite}
-                passes={passFilter.selected}
-              />
+              <ErrorBoundary label="Search">
+
+                <SearchBar
+                  onSelectResort={setSelectedResort}
+                  selectedResort={selectedResort}
+                  isFavorite={isFavorite}
+                  onToggleFavorite={toggleFavorite}
+                  passes={passFilter.selected}
+                />
+
+              </ErrorBoundary>
             </div>
 
             {/* Welcome message */}
@@ -344,15 +359,20 @@ function HomeContent() {
                 )}
 
                 {weatherData && (
-                  <WeatherDashboard
-                    weatherData={weatherData}
-                    selectedResort={selectedResort}
-                    showProView={showProView}
-                    error={error}
-                    lastFetchTime={lastFetchTime}
-                    onRefresh={refresh}
-                    loading={loading}
-                  />
+                  <ErrorBoundary label="Conditions">
+
+                    <WeatherDashboard
+                      weatherData={weatherData}
+                      forecast={forecast}
+                      selectedResort={selectedResort}
+                      showProView={showProView}
+                      error={error}
+                      lastFetchTime={lastFetchTime}
+                      onRefresh={refresh}
+                      loading={loading}
+                    />
+
+                  </ErrorBoundary>
                 )}
               </div>
             )}
@@ -360,7 +380,6 @@ function HomeContent() {
         )}
       </div>
 
-      <InstallPWA />
 
       <FavoritesList
         favorites={favorites}
