@@ -1,7 +1,7 @@
 'use client';
 
 import type { ProcessedWeatherData } from '@/lib/nwsTypes';
-import type { Resort } from '@/lib/types';
+import type { Resort, NormalizedForecast } from '@/lib/types';
 import AlertsSection from '@/components/AlertsSection';
 import SnowAccumulationCard from '@/components/SnowAccumulationCard';
 import WindGustsCard from '@/components/WindGustsCard';
@@ -21,6 +21,8 @@ import WindAspectCard from '@/components/WindAspectCard';
 
 interface WeatherDashboardProps {
   weatherData: ProcessedWeatherData;
+  /** Normalized series behind weatherData, for the raw Pro View. */
+  forecast: NormalizedForecast | null;
   selectedResort: Resort;
   showProView: boolean;
   error: string | null;
@@ -31,6 +33,7 @@ interface WeatherDashboardProps {
 
 export default function WeatherDashboard({
   weatherData,
+  forecast,
   selectedResort,
   showProView,
   error,
@@ -41,7 +44,7 @@ export default function WeatherDashboard({
   return (
     <>
       {showProView ? (
-        <ProView gridpointUrl={weatherData.gridDataUrl} />
+        <ProView forecast={forecast} />
       ) : (
         <>
           <AlertsSection

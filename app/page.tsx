@@ -50,6 +50,7 @@ function HomeContent() {
 
   const {
     conditions: weatherData,
+    forecast,
     loading,
     error,
     refresh,
@@ -363,6 +364,7 @@ function HomeContent() {
 
                     <WeatherDashboard
                       weatherData={weatherData}
+                      forecast={forecast}
                       selectedResort={selectedResort}
                       showProView={showProView}
                       error={error}

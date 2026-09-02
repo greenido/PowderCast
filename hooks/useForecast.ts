@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { Resort } from '@/lib/types';
 import type { RiderConditions } from '@/lib/conditions';
+import type { NormalizedForecast } from '@/lib/types';
 import { deriveConditions } from '@/lib/conditions';
 import { fetchForecast } from '@/lib/providers';
 import { resortPoint } from '@/lib/resortGeo';
@@ -10,7 +11,16 @@ import { resortPoint } from '@/lib/resortGeo';
 export type Elevation = 'base' | 'summit';
 
 const CACHE_TTL_MS = 3_600_000; // 1 hour
-const CACHE_PREFIX = 'pc_forecast_v2';
+// v3 stores the normalized forecast alongside the derived conditions so Pro
+// View can render raw series without a second fetch. The bump also discards
+// every v2 entry, which held conditions only.
+const CACHE_PREFIX = 'pc_forecast_v3';
+
+interface CacheEntry {
+  conditions: RiderConditions;
+  forecast: NormalizedForecast;
+  timestamp: number;
+}
 
 /**
  * Cache key includes elevation and provider version. The v2 prefix also
@@ -21,25 +31,28 @@ function cacheKey(resortId: string, elevation: Elevation): string {
   return `${CACHE_PREFIX}_${resortId}_${elevation}`;
 }
 
-function readCache(key: string, maxAgeMs = CACHE_TTL_MS) {
+function readCache(key: string, maxAgeMs = CACHE_TTL_MS): CacheEntry | null {
   if (typeof window === 'undefined') return null;
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
-    const { data, timestamp } = JSON.parse(raw);
-    if (Date.now() - timestamp > maxAgeMs) return null;
-    return { data: data as RiderConditions, timestamp: timestamp as number };
+    const entry = JSON.parse(raw) as Partial<CacheEntry>;
+    if (!entry?.conditions || !entry.timestamp) return null;
+    if (Date.now() - entry.timestamp > maxAgeMs) return null;
+    return entry as CacheEntry;
   } catch {
     return null;
   }
 }
 
-function writeCache(key: string, data: RiderConditions, timestamp: number) {
+function writeCache(key: string, entry: CacheEntry) {
   if (typeof window === 'undefined') return;
   try {
-    localStorage.setItem(key, JSON.stringify({ data, timestamp }));
+    localStorage.setItem(key, JSON.stringify(entry));
   } catch {
-    // Quota exceeded or private mode — caching is best-effort.
+    // Quota exceeded or private mode — caching is best-effort. A large region
+    // of 7-day hourly series can approach the limit; losing the cache only
+    // costs a refetch.
   }
 }
 
@@ -51,6 +64,7 @@ function writeCache(key: string, data: RiderConditions, timestamp: number) {
  */
 export function useForecast(resort: Resort | null, elevation: Elevation = 'base') {
   const [conditions, setConditions] = useState<RiderConditions | null>(null);
+  const [forecast, setForecast] = useState<NormalizedForecast | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastFetchTime, setLastFetchTime] = useState<number | null>(null);
@@ -83,8 +97,9 @@ export function useForecast(resort: Resort | null, elevation: Elevation = 'base'
       const now = Date.now();
 
       setConditions(derived);
+      setForecast(forecast);
       setLastFetchTime(now);
-      writeCache(key, derived, now);
+      writeCache(key, { conditions: derived, forecast, timestamp: now });
     } catch (err) {
       if (id !== requestId.current) return;
 
@@ -93,7 +108,8 @@ export function useForecast(resort: Resort | null, elevation: Elevation = 'base'
       // Any-age cache beats an error screen on a chairlift with one bar.
       const stale = readCache(key, Infinity);
       if (stale) {
-        setConditions(stale.data);
+        setConditions(stale.conditions);
+        setForecast(stale.forecast ?? null);
         setLastFetchTime(stale.timestamp);
         setError('Showing saved data — could not reach the forecast service');
       } else {
@@ -107,22 +123,25 @@ export function useForecast(resort: Resort | null, elevation: Elevation = 'base'
   useEffect(() => {
     if (!resort) {
       setConditions(null);
+      setForecast(null);
       setLastFetchTime(null);
       return;
     }
 
     const cached = readCache(cacheKey(resort.id, elevation));
     if (cached) {
-      setConditions(cached.data);
+      setConditions(cached.conditions);
+      setForecast(cached.forecast ?? null);
       setLastFetchTime(cached.timestamp);
     } else {
       setConditions(null);
+      setForecast(null);
     }
 
     load();
   }, [resort, elevation, load]);
 
-  return { conditions, loading, error, refresh: load, lastFetchTime };
+  return { conditions, forecast, loading, error, refresh: load, lastFetchTime };
 }
 
 export interface MultiForecastState {
@@ -169,7 +188,7 @@ export function useMultiForecast(
 
       for (const resort of resorts) {
         const hit = force ? null : readCache(cacheKey(resort.id, elevation));
-        if (hit) cached[resort.id] = hit.data;
+        if (hit) cached[resort.id] = hit.conditions;
         else pending.push(resort);
       }
 
@@ -200,11 +219,15 @@ export function useMultiForecast(
             });
             const derived = deriveConditions(forecast);
             results[resort.id] = derived;
-            writeCache(cacheKey(resort.id, elevation), derived, Date.now());
+            writeCache(cacheKey(resort.id, elevation), {
+              conditions: derived,
+              forecast,
+              timestamp: Date.now(),
+            });
           } catch (err) {
             const stale = readCache(cacheKey(resort.id, elevation), Infinity);
             if (stale) {
-              results[resort.id] = stale.data;
+              results[resort.id] = stale.conditions;
             } else {
               failures[resort.id] =
                 err instanceof Error ? err.message : 'Failed to load';
