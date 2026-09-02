@@ -10,6 +10,7 @@ import type { NormalizedForecast, Resort } from '@/lib/types';
 import { groupByLocalDay } from '@/lib/series';
 import { mmToInches, celsiusToFahrenheit, kmhToMph } from '@/lib/unitConversion';
 import { determineSnowQuality } from '@/lib/snowLogic';
+import { scoreConditions, scoreLabel } from '@/lib/scoring';
 import type { SnowQuality } from '@/lib/snowLogic';
 
 export interface DayOutlook {
@@ -39,48 +40,19 @@ function mean(values: number[]): number {
 }
 
 /**
- * Score a single day.
+ * Score a single day using the shared scorer.
  *
- * Deliberately close to lib/rideScore.ts in spirit but daily rather than
- * instantaneous: new snow dominates, wind can veto, and temperature and sky
- * adjust at the margin.
+ * The planner has no instantaneous visibility figure, so it is omitted rather
+ * than defaulted — scoreSky only deducts for visibility it actually knows.
  */
 function scoreDay(day: Omit<DayOutlook, 'score'>): number {
-  // New snow — up to 45. This is what people plan trips around.
-  let snow = 0;
-  if (day.snowfallIn >= 12) snow = 45;
-  else if (day.snowfallIn >= 8) snow = 40;
-  else if (day.snowfallIn >= 4) snow = 32;
-  else if (day.snowfallIn >= 2) snow = 22;
-  else if (day.snowfallIn >= 0.5) snow = 12;
-
-  // Quality of that snow — up to 20.
-  const qualityPoints: Record<SnowQuality, number> = {
-    'Champagne Powder': 20,
-    'Premium Packed': 16,
-    'Sierra Cement': 8,
-    'Mashtatoes/Slush': 4,
-    'Ice Coast': 0,
-  };
-  const quality = day.snowfallIn > 0.5 ? qualityPoints[day.snowQuality] : 8;
-
-  // Wind — up to 20, and a strong veto. A 60mph day closes the good lifts
-  // regardless of how much it snowed.
-  let wind = 20;
-  if (day.maxGustMph >= 55) wind = 0;
-  else if (day.maxGustMph >= 45) wind = 4;
-  else if (day.maxGustMph >= 35) wind = 10;
-  else if (day.maxGustMph >= 25) wind = 15;
-
-  // Sky — up to 8. Bluebird is lovely but not why you book a trip.
-  const sky = day.avgCloudPct < 25 ? 8 : day.avgCloudPct < 60 ? 5 : 2;
-
-  // Temperature comfort — up to 7.
-  const temp = day.maxTempF;
-  const tempPoints =
-    temp >= 15 && temp <= 32 ? 7 : temp >= 5 && temp <= 38 ? 5 : temp > 38 ? 2 : 1;
-
-  return Math.round(Math.min(100, snow + quality + wind + sky + tempPoints));
+  return scoreConditions({
+    snowIn: day.snowfallIn,
+    snowQuality: day.snowQuality,
+    maxGustMph: day.maxGustMph,
+    cloudPct: day.avgCloudPct,
+    tempF: day.maxTempF,
+  }).score;
 }
 
 export function buildOutlook(
@@ -158,10 +130,8 @@ export function rankOutlooks(outlooks: ResortOutlook[]): ResortOutlook[] {
   });
 }
 
+/** Kept for the planner grid's cell styling; delegates to the shared labels. */
 export function scoreTone(score: number): { bg: string; text: string; label: string } {
-  if (score >= 80) return { bg: 'bg-cyan-500/25', text: 'text-cyan-200', label: 'Epic' };
-  if (score >= 65) return { bg: 'bg-emerald-500/20', text: 'text-emerald-200', label: 'Great' };
-  if (score >= 45) return { bg: 'bg-yellow-500/15', text: 'text-yellow-200', label: 'Fair' };
-  if (score >= 30) return { bg: 'bg-orange-500/15', text: 'text-orange-200', label: 'Marginal' };
-  return { bg: 'bg-white/5', text: 'text-gray-400', label: 'Poor' };
+  const label = scoreLabel(score);
+  return { bg: label.bgColor, text: label.color, label: label.short };
 }
