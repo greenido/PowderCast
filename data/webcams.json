@@ -1,0 +1,31 @@
+{
+  "_comment": "Curated live-webcam pages, keyed by resort id. OpenSkiMap does not carry webcam links, so this overlay is applied on top of the generated public/resorts.json by scripts/build-resorts.js. Every entry here was hand-checked; a resort with no entry falls back to its website_url, which is the honest answer rather than a guessed URL. Add entries freely, but only ones you have actually opened.",
+  "_verifiedOn": "2026-09-02",
+  "webcams": {
+    "palisades-tahoe-olympic-valley-us": "https://www.palisadestahoe.com/mountain-information/mountain-cams",
+    "palisades-tahoe-alpine-meadows-us": "https://www.palisadestahoe.com/mountain-information/mountain-cams",
+    "northstar-at-tahoe-resort-us": "https://www.northstarcalifornia.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+    "heavenly-mountain-resort-us": "https://www.skiheavenly.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+    "kirkwood-mountain-resort-us": "https://www.kirkwood.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+    "mammoth-mountain-us": "https://www.mammothmountain.com/on-the-mountain/mammoth-webcam",
+    "vail-us": "https://www.vail.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+    "breckenridge-us": "https://www.breckenridge.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+    "keystone-us": "https://www.keystoneresort.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+    "arapahoe-basin-us": "https://www.arapahoebasin.com/the-mountain/mountain-conditions/mountain-cams/",
+    "copper-mountain-us": "https://www.coppercolorado.com/the-mountain/mountain-conditions/mountain-cams",
+    "aspen-snowmass-us": "https://www.aspensnowmass.com/the-mountains/mountain-conditions/webcams",
+    "aspen-mountain-us": "https://www.aspensnowmass.com/the-mountains/mountain-conditions/webcams",
+    "aspen-highlands-us": "https://www.aspensnowmass.com/the-mountains/mountain-conditions/webcams",
+    "jackson-hole-mountain-resort-us": "https://www.jacksonhole.com/webcams",
+    "park-city-mountain-resort-us": "https://www.parkcitymountain.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+    "deer-valley-resort-us": "https://www.deervalley.com/mountain/snow-report/web-cams",
+    "alta-ski-area-us": "https://www.alta.com/conditions/mountain-cams",
+    "snowbird-us": "https://www.snowbird.com/mountain-report/webcams/",
+    "big-sky-resort-us": "https://bigskyresort.com/the-mountain/mountain-conditions/mountain-cams",
+    "killington-resort-us": "https://www.killington.com/the-mountain/mountain-conditions/mountain-cams",
+    "stowe-mountain-resort-us": "https://www.stowe.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+    "bretton-woods-ski-area-us": "https://www.brettonwoods.com/mountain-report/webcams",
+    "stevens-pass-ski-area-us": "https://www.stevenspass.com/the-mountain/mountain-conditions/mountain-cams.aspx",
+    "crystal-mountain-us": "https://www.crystalmountainresort.com/the-mountain/mountain-conditions/mountain-cams"
+  }
+}

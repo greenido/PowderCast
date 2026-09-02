@@ -182,4 +182,42 @@ test('the shipped resorts.json passes cleanly', () => {
   assert.ok(resorts.length > 500, `expected 500+ resorts, got ${resorts.length}`);
 });
 
+test('every curated webcam maps to a resort that ships', () => {
+  const { webcams } = require('../data/webcams.json') as { webcams: Record<string, string> };
+  const { resorts } = sanitizeResorts(require('../public/resorts.json'));
+  const ids = new Set(resorts.map((r) => r.id));
+
+  const orphans = Object.keys(webcams).filter((id) => !ids.has(id));
+  assert.deepEqual(
+    orphans,
+    [],
+    `webcams.json points at ids that no longer exist: ${orphans.join(', ')}. ` +
+      'Resort ids are derived from upstream names, so a rename upstream silently ' +
+      'orphans the entry and the resort loses its cams.'
+  );
+
+  for (const [id, url] of Object.entries(webcams)) {
+    assert.ok(url.startsWith('https://'), `${id} webcam is not https`);
+  }
+});
+
+test('the overlay actually reached the shipped data', () => {
+  const { webcams } = require('../data/webcams.json') as { webcams: Record<string, string> };
+  const { resorts } = sanitizeResorts(require('../public/resorts.json'));
+  const withCams = resorts.filter((r) => r.webcam_url);
+
+  assert.equal(
+    withCams.length,
+    Object.keys(webcams).length,
+    'resorts.json is stale — rerun scripts/build-resorts.js after editing webcams.json'
+  );
+});
+
+test('nearly every resort offers at least one link out', () => {
+  const { resorts } = sanitizeResorts(require('../public/resorts.json'));
+  const linked = resorts.filter((r) => r.webcam_url || r.website_url);
+  const coverage = linked.length / resorts.length;
+  assert.ok(coverage > 0.9, `only ${Math.round(coverage * 100)}% of resorts link anywhere`);
+});
+
 console.log(`\n✅ ${passed} assertions passed\n`);

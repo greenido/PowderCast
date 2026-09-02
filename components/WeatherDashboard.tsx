@@ -122,10 +122,7 @@ export default function WeatherDashboard({
               regionCode={selectedResort.regionCode}
               hourly={weatherData.hourlySnowForecast}
             />
-            <WebcamViewer
-              webcamUrl={selectedResort.webcam_url}
-              resortName={selectedResort.name}
-            />
+            <WebcamViewer resort={selectedResort} />
           </div>
 
           {/* 7-Day Forecast — narrative periods, NWS only */}
