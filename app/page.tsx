@@ -11,6 +11,7 @@ import PlannerGrid from '@/components/PlannerGrid';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import UnitsToggle from '@/components/UnitsToggle';
 import ViewTabs, { type ViewTab } from '@/components/ViewTabs';
+import NearbyPanel from '@/components/NearbyPanel';
 import { useForecast } from '@/hooks/useForecast';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
@@ -18,10 +19,12 @@ import { ResortsProvider, useResortsContext } from '@/hooks/useResorts';
 import { UnitsProvider, useUnits } from '@/hooks/useUnits';
 import { useResort } from '@/hooks/useResortSearch';
 import { useUrlState } from '@/hooks/useUrlState';
+import { GeolocationProvider, useGeolocation } from '@/hooks/useGeolocation';
 import PassFilter from '@/components/PassFilter';
 import { usePassFilter } from '@/hooks/usePassFilter';
 import { filterByPasses } from '@/lib/passes';
 import { availableRegions, resortsInRegion, REGION_LABELS } from '@/lib/regions';
+import { distanceIndex, resortsNear } from '@/lib/nearby';
 import type { Resort } from '@/lib/types';
 import { StarIcon, BeakerIcon } from '@heroicons/react/24/solid';
 
@@ -69,11 +72,57 @@ function HomeContent() {
   // Wire up visibility-aware auto-refresh (15 minutes) for active mountain view
   useAutoRefresh(refresh, 900000, lastFetchTime);
 
-  // Determine which resorts to compare
-  const compareResorts =
+  // "Nearby" is a pseudo-region: the closest resorts to the rider, in place
+  // of a named range. It waits for a location rather than guessing one.
+  const { position } = useGeolocation();
+  const nearby = position ? resortsNear(visibleResorts, position, 12) : [];
+  const nearbyDistances = comparisonRegion === 'Nearby' ? distanceIndex(nearby) : undefined;
+  const needsLocation = comparisonRegion === 'Nearby' && !position;
+
+  // Resorts behind the current region choice, capped because the comparison
+  // and planner fetch one forecast per resort.
+  const regionResorts = (limit: number): Resort[] =>
     comparisonRegion === 'Favorites'
       ? favorites
-      : resortsInRegion(visibleResorts, comparisonRegion);
+      : comparisonRegion === 'Nearby'
+        ? nearby.slice(0, limit).map((n) => n.resort)
+        : resortsInRegion(visibleResorts, comparisonRegion, limit);
+
+  const regionTitle =
+    comparisonRegion === 'Favorites'
+      ? 'Favorites'
+      : comparisonRegion === 'Nearby'
+        ? 'Near you'
+        : REGION_LABELS[comparisonRegion];
+
+  const regionChips = (
+    <div className="flex flex-wrap justify-center gap-2">
+      {[{ code: 'Nearby' as const, emoji: '📍', label: 'Nearby' }, ...regions].map((region) => (
+        <button
+          key={region.code}
+          onClick={() => url.update({ region: region.code }, 'replace')}
+          aria-pressed={comparisonRegion === region.code}
+          className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
+            comparisonRegion === region.code
+              ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400/30 font-bold'
+              : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white'
+          }`}
+        >
+          {region.emoji} {region.label}
+        </button>
+      ))}
+    </div>
+  );
+
+  const nearbyPanel = (
+    <NearbyPanel
+      resorts={visibleResorts}
+      onSelectResort={selectResort}
+      onCompareNearby={() => url.update({ view: 'compare', region: 'Nearby' })}
+      onPlanNearby={() => url.update({ view: 'planner', region: 'Nearby' })}
+    />
+  );
+  const locatePrompt = <div className="mx-auto max-w-2xl">{nearbyPanel}</div>;
 
   // The welcome screen keeps the full hero; everywhere else the chrome shrinks
   // so the forecast starts on the first screen.
@@ -219,65 +268,30 @@ function HomeContent() {
         {/* 7-DAY PLANNER MODE */}
         {viewMode === 'planner' ? (
           <div className="space-y-6">
-            <div className="flex flex-wrap justify-center gap-2">
-              {regions.map((region) => (
-                <button
-                  key={region.code}
-                  onClick={() => url.update({ region: region.code }, 'replace')}
-                  className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
-                    comparisonRegion === region.code
-                      ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400/30 font-bold'
-                      : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white'
-                  }`}
-                >
-                  {region.emoji} {region.label}
-                </button>
-              ))}
-            </div>
+            {regionChips}
 
-            <ErrorBoundary label="7-Day Planner">
-
-
-              <PlannerGrid
-                resorts={
-                  comparisonRegion === 'Favorites'
-                    ? favorites
-                    : resortsInRegion(visibleResorts, comparisonRegion, 10)
-                }
-                title={
-                  comparisonRegion === 'Favorites'
-                    ? 'Favorites'
-                    : REGION_LABELS[comparisonRegion]
-                }
-                onSelectResort={selectResort}
-              />
-
-
-            </ErrorBoundary>
+            {needsLocation ? (
+              locatePrompt
+            ) : (
+              <ErrorBoundary label="7-Day Planner">
+                <PlannerGrid
+                  resorts={regionResorts(10)}
+                  title={regionTitle}
+                  onSelectResort={selectResort}
+                  distances={nearbyDistances}
+                />
+              </ErrorBoundary>
+            )}
           </div>
         ) : viewMode === 'compare' ? (
           <div className="space-y-6">
             {/* Region quick filter buttons */}
-            {comparisonRegion !== 'Favorites' && (
-              <div className="flex flex-wrap justify-center gap-2 mb-6">
-                {regions.map((region) => (
-                  <button
-                    key={region.code}
-                    onClick={() => url.update({ region: region.code }, 'replace')}
-                    className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
-                      comparisonRegion === region.code
-                        ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400/30 font-bold shadow-md shadow-cyan-500/5'
-                        : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white'
-                    }`}
-                  >
-                    {region.emoji} {region.label}
-                  </button>
-                ))}
-              </div>
-            )}
+            {comparisonRegion !== 'Favorites' && regionChips}
 
             {/* Render dashboard or empty favorites warning */}
-            {comparisonRegion === 'Favorites' && favorites.length === 0 ? (
+            {needsLocation ? (
+              locatePrompt
+            ) : comparisonRegion === 'Favorites' && favorites.length === 0 ? (
               <div className="glass-card text-center py-16 max-w-2xl mx-auto border-dashed">
                 <div className="text-5xl mb-4 text-yellow-400 animate-pulse">⭐</div>
                 <h3 className="text-xl font-bold text-white mb-2">No Favorites Added</h3>
@@ -295,9 +309,11 @@ function HomeContent() {
               <ErrorBoundary label="Comparison">
 
                 <ComparisonDashboard
-                  resorts={compareResorts}
+                  resorts={regionResorts(12)}
                   onSelectResort={selectResort}
-                  title={comparisonRegion === 'Favorites' ? 'Favorites' : REGION_LABELS[comparisonRegion]}
+                  title={regionTitle}
+                  distances={nearbyDistances}
+                  origin={position}
                 />
 
               </ErrorBoundary>
@@ -339,6 +355,11 @@ function HomeContent() {
                   </>
                 )}
               </div>
+            )}
+
+            {/* One tap to "what's near me" — no keyboard needed on a phone */}
+            {!url.resortId && (
+              <ErrorBoundary label="Nearby">{nearbyPanel}</ErrorBoundary>
             )}
 
             {/* Welcome message */}
@@ -447,7 +468,9 @@ export default function Home() {
   return (
     <ResortsProvider>
       <UnitsProvider>
-        <HomeContent />
+        <GeolocationProvider>
+          <HomeContent />
+        </GeolocationProvider>
       </UnitsProvider>
     </ResortsProvider>
   );

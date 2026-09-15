@@ -8,6 +8,10 @@ import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { useResortSearch } from '@/hooks/useResortSearch';
 import type { Resort, PassId } from '@/lib/types';
 import { PassBadgeList } from '@/components/PassBadge';
+import { useGeolocation } from '@/hooks/useGeolocation';
+import { useUnits } from '@/hooks/useUnits';
+import { haversineMeters } from '@/lib/resortGeo';
+import { formatDistance, formatElevation } from '@/lib/units';
 
 interface SearchBarProps {
   onSelectResort: (resort: Resort | null) => void;
@@ -26,7 +30,17 @@ export default function SearchBar({
   passes = [],
 }: SearchBarProps) {
   const [query, setQuery] = useState('');
-  const { resorts, loading } = useResortSearch(query, passes);
+  const { position } = useGeolocation();
+  const { units } = useUnits();
+  const { resorts, loading } = useResortSearch(query, passes, position);
+
+  const distanceTo = (resort: Resort) =>
+    position
+      ? formatDistance(
+          haversineMeters(position.lat, position.lon, resort.base_lat, resort.base_lon) / 1000,
+          units
+        )
+      : null;
 
   return (
     <div className="w-full max-w-2xl mx-auto">
@@ -36,7 +50,7 @@ export default function SearchBar({
             <MagnifyingGlassIcon className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 w-5 h-5 sm:w-6 sm:h-6 text-cyan-400" />
             <Combobox.Input
               className="w-full bg-white/10 backdrop-blur-md border border-white/20 rounded-xl pl-11 sm:pl-14 pr-3 sm:pr-4 py-3 sm:py-4 text-base sm:text-lg md:text-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-400 transition-all"
-              placeholder="Search 700+ resorts worldwide..."
+              placeholder={position ? 'Search, or pick a resort near you...' : 'Search 700+ resorts worldwide...'}
               displayValue={(resort: Resort | null) => resort?.name || ''}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -77,7 +91,8 @@ export default function SearchBar({
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm sm:text-base md:text-lg truncate">{resort.name}</div>
                         <div className="text-xs sm:text-sm text-gray-400 truncate">
-                          {Array.from(new Set([resort.region, resort.state].filter(Boolean))).join(', ')} · {resort.country} · {resort.base_elevation.toLocaleString()}–{resort.summit_elevation.toLocaleString()}ft
+                          {position && <span className="text-cyan-300">{distanceTo(resort)} · </span>}
+                          {Array.from(new Set([resort.region, resort.state].filter(Boolean))).join(', ')} · {resort.country} · {formatElevation(resort.base_elevation, units)}–{formatElevation(resort.summit_elevation, units)}
                         </div>
                         <PassBadgeList passes={resort.passes} size="compact" className="mt-1" />
                       </div>

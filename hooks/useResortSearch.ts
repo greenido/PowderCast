@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import type { Resort, PassId } from '@/lib/types';
 import { useResortsContext } from '@/hooks/useResorts';
 import { filterByPasses } from '@/lib/passes';
+import { resortsNear, type LatLon } from '@/lib/nearby';
 
 const MAX_RESULTS = 12;
 
@@ -54,7 +55,7 @@ function score(resort: Resort, query: string): number {
   return base + sizeBonus;
 }
 
-export function useResortSearch(query: string, passes: PassId[] = []) {
+export function useResortSearch(query: string, passes: PassId[] = [], origin: LatLon | null = null) {
   const { allResorts } = useResortsContext();
   const [debounced, setDebounced] = useState('');
 
@@ -72,9 +73,11 @@ export function useResortSearch(query: string, passes: PassId[] = []) {
   const resorts = useMemo(() => {
     const q = normalize(debounced.trim());
 
-    // With no query, show the biggest resorts in the current filter — a useful
-    // default rather than an empty dropdown.
+    // With no query, show the nearest resorts once we know where the rider is,
+    // and the biggest in the current filter until then — a useful default
+    // rather than an empty dropdown.
     if (q.length < 2) {
+      if (origin) return resortsNear(pool, origin, MAX_RESULTS).map((n) => n.resort);
       return [...pool].sort((a, b) => (b.runsKm ?? 0) - (a.runsKm ?? 0)).slice(0, MAX_RESULTS);
     }
 
@@ -84,7 +87,7 @@ export function useResortSearch(query: string, passes: PassId[] = []) {
       .sort((a, b) => b.score - a.score || a.resort.name.localeCompare(b.resort.name))
       .slice(0, MAX_RESULTS)
       .map((entry) => entry.resort);
-  }, [debounced, pool]);
+  }, [debounced, pool, origin]);
 
   return { resorts, loading: query !== debounced && query.length >= 2 };
 }

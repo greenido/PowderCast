@@ -12,7 +12,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:processing": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/nwsProcessing.test.ts",
-    "test": "yarn test:processing && yarn test:scoring && yarn test:units && yarn test:elevation && yarn test:schema && yarn test:url",
+    "test": "yarn test:processing && yarn test:scoring && yarn test:units && yarn test:elevation && yarn test:schema && yarn test:url && yarn test:nearby",
     "test:providers": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/providers.test.ts",
     "build:resorts": "node scripts/build-resorts.js",
     "verify:passes": "node scripts/build-resorts.js --check",
@@ -21,16 +21,19 @@
     "test:schema": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/resortSchema.test.ts",
     "test:scoring": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/scoring.test.ts",
     "test:url": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/urlState.test.ts",
+    "test:nearby": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/nearby.test.ts",
     "generate:icons": "node scripts/generate-icons.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.0",
     "@heroicons/react": "^2.2.0",
+    "leaflet": "^1.9.4",
     "next": "^15.1.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@types/leaflet": "^1.9.22",
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
