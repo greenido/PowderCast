@@ -176,6 +176,8 @@ export interface ScoreLabel {
   color: string;
   bgColor: string;
   borderColor: string;
+  /** The band colour as a hex value, for canvas and map markers outside Tailwind. */
+  hex: string;
 }
 
 const BANDS: Array<{ min: number; label: ScoreLabel }> = [
@@ -188,6 +190,7 @@ const BANDS: Array<{ min: number; label: ScoreLabel }> = [
       color: 'text-cyan-300',
       bgColor: 'bg-cyan-500/15',
       borderColor: 'border-cyan-400/30',
+      hex: '#67e8f9',
     },
   },
   {
@@ -199,6 +202,7 @@ const BANDS: Array<{ min: number; label: ScoreLabel }> = [
       color: 'text-emerald-300',
       bgColor: 'bg-emerald-500/15',
       borderColor: 'border-emerald-400/30',
+      hex: '#6ee7b7',
     },
   },
   {
@@ -210,6 +214,7 @@ const BANDS: Array<{ min: number; label: ScoreLabel }> = [
       color: 'text-yellow-300',
       bgColor: 'bg-yellow-500/15',
       borderColor: 'border-yellow-400/30',
+      hex: '#fde047',
     },
   },
   {
@@ -221,6 +226,7 @@ const BANDS: Array<{ min: number; label: ScoreLabel }> = [
       color: 'text-orange-300',
       bgColor: 'bg-orange-500/15',
       borderColor: 'border-orange-400/30',
+      hex: '#fdba74',
     },
   },
   {
@@ -232,6 +238,7 @@ const BANDS: Array<{ min: number; label: ScoreLabel }> = [
       color: 'text-gray-400',
       bgColor: 'bg-white/5',
       borderColor: 'border-white/10',
+      hex: '#9ca3af',
     },
   },
 ];

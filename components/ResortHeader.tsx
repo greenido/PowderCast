@@ -3,6 +3,10 @@
 import type { Resort } from '@/lib/types';
 import { PassBadgeList } from '@/components/PassBadge';
 import ShareButton from '@/components/ShareButton';
+import { useGeolocation } from '@/hooks/useGeolocation';
+import { useUnits } from '@/hooks/useUnits';
+import { haversineMeters } from '@/lib/resortGeo';
+import { formatDistance } from '@/lib/units';
 import { StarIcon } from '@heroicons/react/24/solid';
 
 interface ResortHeaderProps {
@@ -18,6 +22,12 @@ export default function ResortHeader({
   isFavorite,
   onToggleFavorite,
 }: ResortHeaderProps) {
+  const { position } = useGeolocation();
+  const { units } = useUnits();
+  const distanceKm = position
+    ? haversineMeters(position.lat, position.lon, resort.base_lat, resort.base_lon) / 1000
+    : null;
+
   return (
     <div className="glass-card">
       <div className="flex items-start justify-between gap-2">
@@ -25,6 +35,9 @@ export default function ResortHeader({
           <h2 className="text-2xl font-bold text-cyan-400 sm:text-3xl">{resort.name}</h2>
           <p className="mt-1 text-sm text-gray-400 sm:text-base">
             {Array.from(new Set([resort.region, resort.state].filter(Boolean))).join(', ')} · {resort.country}
+            {distanceKm !== null && (
+              <span className="text-cyan-300"> · {formatDistance(distanceKm, units)} away</span>
+            )}
           </p>
           <PassBadgeList passes={resort.passes} className="mt-2" />
         </div>

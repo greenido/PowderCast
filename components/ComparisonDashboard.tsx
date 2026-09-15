@@ -1,33 +1,71 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import type { Resort } from '@/lib/types';
+import type { LatLon } from '@/lib/nearby';
 import { useMultiForecast } from '@/hooks/useForecast';
 import { calculateRideScore, getRideScoreLabel } from '@/lib/rideScore';
 import { snowLabel } from '@/lib/snowVocabulary';
 import { useUnits } from '@/hooks/useUnits';
-import { formatTemp, formatWind, formatSnow } from '@/lib/units';
+import { formatTemp, formatWind, formatSnow, formatDistance } from '@/lib/units';
 import { PassBadgeList } from '@/components/PassBadge';
 import { 
   StarIcon, 
   ArrowPathIcon, 
   ChevronRightIcon, 
   ExclamationTriangleIcon,
-  SparklesIcon
+  SparklesIcon,
+  MapIcon,
 } from '@heroicons/react/24/solid';
+
+// Leaflet reads `window` at import, and most visits never open a comparison —
+// so the map and its stylesheet load on demand, client-side only.
+const ResortMap = dynamic(() => import('@/components/ResortMap'), {
+  ssr: false,
+  loading: () => (
+    <div className="h-72 w-full animate-pulse rounded-2xl border border-white/10 bg-white/5 sm:h-96" />
+  ),
+});
 
 interface ComparisonDashboardProps {
   resorts: Resort[];
   onSelectResort: (resort: Resort) => void;
   title: string;
+  /** Resort id → km from the rider, shown in place of the region when set. */
+  distances?: Record<string, number>;
+  /** The rider's position, for the map's "you are here" dot. */
+  origin?: LatLon | null;
 }
 
 type SortOption = 'rideScore' | 'snowfall' | 'name';
 
-export default function ComparisonDashboard({ resorts, onSelectResort, title }: ComparisonDashboardProps) {
+export default function ComparisonDashboard({
+  resorts,
+  onSelectResort,
+  title,
+  distances,
+  origin = null,
+}: ComparisonDashboardProps) {
   const { data, errors, loading, refresh } = useMultiForecast(resorts);
   const [sortBy, setSortBy] = useState<SortOption>('rideScore');
+  const [showMap, setShowMap] = useState(false);
   const { units } = useUnits();
+
+  // Open by default where there is room beside the grid; on a phone the map
+  // is one tap away rather than a 300px block above every card.
+  useEffect(() => {
+    setShowMap(window.matchMedia('(min-width: 1024px)').matches);
+  }, []);
+
+  const mapPoints = useMemo(
+    () =>
+      resorts.map((resort) => ({
+        resort,
+        score: data[resort.id] ? calculateRideScore(data[resort.id]).score : null,
+      })),
+    [resorts, data]
+  );
 
   // Prepare and enrich the resort list with weather & scores if available
   const processedResorts = resorts.map((resort) => {
@@ -121,6 +159,19 @@ export default function ComparisonDashboard({ resorts, onSelectResort, title }: 
             </button>
           </div>
 
+          <button
+            onClick={() => setShowMap(!showMap)}
+            aria-pressed={showMap}
+            className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-semibold transition-all sm:text-sm ${
+              showMap
+                ? 'border-cyan-400/30 bg-cyan-500/20 text-cyan-300'
+                : 'border-white/10 bg-white/10 text-white hover:bg-white/20'
+            }`}
+          >
+            <MapIcon className="h-4 w-4" />
+            Map
+          </button>
+
           {/* Refresh Button */}
           <button
             onClick={() => refresh()}
@@ -132,6 +183,10 @@ export default function ComparisonDashboard({ resorts, onSelectResort, title }: 
           </button>
         </div>
       </div>
+
+      {showMap && resorts.length > 0 && (
+        <ResortMap points={mapPoints} origin={origin} onSelectResort={onSelectResort} />
+      )}
 
       {/* Resorts Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -205,7 +260,11 @@ export default function ComparisonDashboard({ resorts, onSelectResort, title }: 
                   <div className="flex justify-between items-start">
                     <div>
                       <h3 className="text-lg font-bold text-white leading-tight tracking-wide">{resort.name}</h3>
-                      <p className="text-xs text-gray-400 mt-0.5">{resort.region}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">
+                        {distances?.[resort.id] !== undefined
+                          ? `${formatDistance(distances[resort.id], units)} away · ${resort.region}`
+                          : resort.region}
+                      </p>
                       <PassBadgeList passes={resort.passes} size="compact" className="mt-1.5" />
                     </div>
                     <span className="text-xs text-gray-300 bg-white/10 px-2.5 py-0.5 rounded-full font-bold border border-white/5">

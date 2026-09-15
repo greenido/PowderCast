@@ -66,6 +66,12 @@ test('favorites comparison uses a lowercase slug in the URL', () => {
   assert.equal(serializeUrlState(state), '?view=compare&region=favorites');
 });
 
+test('nearby round-trips without carrying a location', () => {
+  const state = parseUrlState('?view=planner&region=nearby');
+  assert.equal(state.region, 'Nearby');
+  assert.equal(serializeUrlState(state), '?view=planner&region=nearby');
+});
+
 test('the URL describes only the visible view', () => {
   // A shared planner link should not carry whichever resort the sender last
   // opened, and a mountain link should not carry a region.

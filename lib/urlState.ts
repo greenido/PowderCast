@@ -16,7 +16,8 @@ import type { RegionCode } from '@/lib/types';
 import { REGIONS } from '@/lib/regions';
 
 export type ViewMode = 'single' | 'compare' | 'planner';
-export type ComparisonRegion = RegionCode | 'Favorites';
+/** A region, the rider's favorites, or the resorts nearest the rider. */
+export type ComparisonRegion = RegionCode | 'Favorites' | 'Nearby';
 export type Elevation = 'base' | 'summit';
 
 export interface AppUrlState {
@@ -60,9 +61,11 @@ function parse(search: string): ParsedUrl {
   const region: ComparisonRegion | undefined =
     regionParam === 'favorites'
       ? 'Favorites'
-      : regionParam && REGION_CODES.has(regionParam)
-        ? (regionParam as RegionCode)
-        : undefined;
+      : regionParam === 'nearby'
+        ? 'Nearby'
+        : regionParam && REGION_CODES.has(regionParam)
+          ? (regionParam as RegionCode)
+          : undefined;
 
   return region ? { view, region } : { view };
 }
@@ -91,7 +94,11 @@ export function serializeUrlState(state: AppUrlState): string {
     if (state.resortId && state.elevation === 'summit') params.set('elev', 'summit');
   } else {
     params.set('view', state.view);
-    params.set('region', state.region === 'Favorites' ? 'favorites' : state.region);
+    // Lowercase slugs for the two pseudo-regions. A shared "nearby" link means
+    // near whoever opens it — the sender's location never enters the URL.
+    const region =
+      state.region === 'Favorites' ? 'favorites' : state.region === 'Nearby' ? 'nearby' : state.region;
+    params.set('region', region);
   }
 
   const query = params.toString();

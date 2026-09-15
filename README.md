@@ -24,6 +24,10 @@ actually ride.
 - **🎫 Pass filter** — tag your Ikon / Epic / Mountain Collective pass and the
   whole app narrows to resorts it covers
 - **📊 Region comparison** — side-by-side conditions and Ride Scores
+- **📍 Near me** — one tap ranks resorts by distance from you, and "Nearby"
+  works as a region in the planner and comparison. Your location stays in
+  memory and never enters the URL
+- **🗺️ Map** — the comparison on a map, pins coloured by Ride Score
 
 ### Conditions
 - **🎯 Today at a glance** — the Ride Score and the four numbers that decide
@@ -188,6 +192,7 @@ exists for the area.
 Educational project. Weather data: NOAA/NWS (public domain) and
 [Open-Meteo](https://open-meteo.com) (CC BY 4.0). Resort data:
 [OpenSkiMap](https://openskimap.org) / OpenStreetMap contributors (ODbL).
+Map tiles: [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors.
 
 Not a substitute for official avalanche bulletins or resort snow reports.
 

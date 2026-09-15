@@ -102,6 +102,13 @@ export function elevationUnit(units: UnitSystem): string {
   return units === 'metric' ? 'm' : 'ft';
 }
 
+/** Travel distance, given kilometres. Whole numbers — this is "how far", not navigation. */
+export function formatDistance(km: number, units: UnitSystem): string {
+  const value = units === 'metric' ? km : km / KM_PER_MILE;
+  const unit = units === 'metric' ? 'km' : 'mi';
+  return value < 1 ? `<1 ${unit}` : `${Math.round(value).toLocaleString()} ${unit}`;
+}
+
 /** Visibility, given metres (the raw provider unit). */
 export function formatVisibility(meters: number, units: UnitSystem): string {
   if (units === 'metric') {

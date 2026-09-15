@@ -4,7 +4,7 @@ import type { Resort } from '@/lib/types';
 import { usePlanner } from '@/hooks/usePlanner';
 import { scoreTone, type DayOutlook } from '@/lib/planner';
 import { useUnits } from '@/hooks/useUnits';
-import { formatSnow, formatWind } from '@/lib/units';
+import { formatDistance, formatSnow, formatWind } from '@/lib/units';
 import { PassBadgeList } from '@/components/PassBadge';
 import { ArrowPathIcon } from '@heroicons/react/24/solid';
 
@@ -12,6 +12,8 @@ interface PlannerGridProps {
   resorts: Resort[];
   title: string;
   onSelectResort: (resort: Resort) => void;
+  /** Resort id → km from the rider, shown in place of the region when set. */
+  distances?: Record<string, number>;
 }
 
 function weekday(timestamp: number, timezone: string): string {
@@ -35,7 +37,7 @@ function dayNumber(timestamp: number, timezone: string): string {
  * planning view: the whole region across the whole forecast window, ranked, so
  * the best day and the best mountain are visible at a glance.
  */
-export default function PlannerGrid({ resorts, title, onSelectResort }: PlannerGridProps) {
+export default function PlannerGrid({ resorts, title, onSelectResort, distances }: PlannerGridProps) {
   const { outlooks, loading, errors, refresh } = usePlanner(resorts);
   const { units } = useUnits();
 
@@ -107,7 +109,11 @@ export default function PlannerGrid({ resorts, title, onSelectResort }: PlannerG
                       className="text-left transition-colors hover:text-cyan-400"
                     >
                       <div className="text-sm font-semibold text-white">{resort.name}</div>
-                      <div className="text-[11px] text-gray-500">{resort.region}</div>
+                      <div className="text-[11px] text-gray-500">
+                        {distances?.[resort.id] !== undefined
+                          ? `${formatDistance(distances[resort.id], units)} away`
+                          : resort.region}
+                      </div>
                       <PassBadgeList passes={resort.passes} size="compact" className="mt-1" />
                     </button>
                   </td>
