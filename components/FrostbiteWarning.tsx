@@ -3,6 +3,8 @@
 import { ExclamationTriangleIcon } from '@heroicons/react/24/solid';
 import { calculateWindChill } from '@/lib/unitConversion';
 import { getFrostbiteWarning } from '@/lib/snowLogic';
+import { useUnits } from '@/hooks/useUnits';
+import { formatTemp, formatWind } from '@/lib/units';
 
 interface FrostbiteWarningProps {
   temperature: number;
@@ -10,6 +12,7 @@ interface FrostbiteWarningProps {
 }
 
 export default function FrostbiteWarning({ temperature, windSpeed }: FrostbiteWarningProps) {
+  const { units } = useUnits();
   const windChill = calculateWindChill(temperature, windSpeed);
   const warning = getFrostbiteWarning(windChill);
 
@@ -40,13 +43,13 @@ export default function FrostbiteWarning({ temperature, windSpeed }: FrostbiteWa
             {warning.level === 'extreme' ? '🥶 EXTREME COLD WARNING' : '❄️ FROSTBITE RISK'}
           </div>
           <div className="text-sm sm:text-base text-white font-semibold mb-1">
-            Wind Chill: {Math.round(windChill)}°F
+            Wind Chill: {formatTemp(windChill, units)}
           </div>
           <div className="text-xs sm:text-sm text-gray-300">
             {warning.message}
           </div>
           <div className="text-xs text-gray-400 mt-1 sm:mt-2">
-            Temp: {Math.round(temperature)}°F • Wind: {Math.round(windSpeed)} mph
+            Temp: {formatTemp(temperature, units)} • Wind: {formatWind(windSpeed, units)}
           </div>
         </div>
       </div>

@@ -2,6 +2,8 @@
 
 import { StarIcon, XMarkIcon, TrashIcon } from '@heroicons/react/24/solid';
 import type { Resort } from '@/lib/types';
+import { useUnits } from '@/hooks/useUnits';
+import { formatElevation } from '@/lib/units';
 
 interface FavoritesListProps {
   favorites: Resort[];
@@ -21,6 +23,8 @@ export default function FavoritesList({
   isOpen,
   onClose,
 }: FavoritesListProps) {
+  const { units } = useUnits();
+
   if (!isOpen) return null;
 
   return (
@@ -84,7 +88,7 @@ export default function FavoritesList({
                         {resort.region}, {resort.state}
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        Base: {resort.base_elevation.toLocaleString()}ft • Summit: {resort.summit_elevation.toLocaleString()}ft
+                        Base: {formatElevation(resort.base_elevation, units)} • Summit: {formatElevation(resort.summit_elevation, units)}
                       </div>
                     </button>
 

@@ -1,12 +1,16 @@
 'use client';
 
 import { SparklesIcon } from '@heroicons/react/24/solid';
+import { useUnits } from '@/hooks/useUnits';
+import { formatSnow } from '@/lib/units';
 
 interface PowderAlertProps {
   snow24h: number;
 }
 
 export default function PowderAlert({ snow24h }: PowderAlertProps) {
+  const { units } = useUnits();
+
   if (snow24h < 6) return null;
 
   return (
@@ -20,7 +24,7 @@ export default function PowderAlert({ snow24h }: PowderAlertProps) {
             ❄️ POWDER ALERT! ❄️
           </div>
           <div className="text-base sm:text-lg text-white">
-            {Math.round(snow24h)}&quot; of fresh snow in the last 24 hours!
+            {formatSnow(snow24h, units)} of fresh snow in the last 24 hours!
           </div>
           <div className="text-xs sm:text-sm text-gray-300 mt-1 sm:mt-2">
             Get ready for epic face shots and deep turns! 🏂

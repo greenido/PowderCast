@@ -3,12 +3,15 @@
 import { useState } from 'react';
 import { DocumentTextIcon, ChevronDownIcon, ChevronUpIcon } from '@heroicons/react/24/solid';
 import type { NarrativePeriod } from '@/lib/types';
+import { useUnits } from '@/hooks/useUnits';
+import { formatTemp } from '@/lib/units';
 
 interface DetailedForecastProps {
   periods: NarrativePeriod[];
 }
 
 export default function DetailedForecast({ periods }: DetailedForecastProps) {
+  const { units } = useUnits();
   const [expandedPeriods, setExpandedPeriods] = useState<Set<number>>(new Set([0])); // First period expanded by default
 
   const togglePeriod = (periodNumber: number) => {
@@ -61,7 +64,13 @@ export default function DetailedForecast({ periods }: DetailedForecastProps) {
                     </div>
                     <div className="flex items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-400">
                       <span className="text-xl sm:text-2xl font-bold text-white">
-                        {period.temperature}°{period.temperatureUnit}
+                        {/* NWS reports °F; normalise defensively before the one conversion. */}
+                        {formatTemp(
+                          period.temperatureUnit === 'C'
+                            ? (period.temperature * 9) / 5 + 32
+                            : period.temperature,
+                          units
+                        )}
                       </span>
                       <span>{period.windSpeed} {period.windDirection}</span>
                       <span className="text-gray-500">•</span>

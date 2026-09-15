@@ -1,6 +1,8 @@
 'use client';
 
 import { SunIcon } from '@heroicons/react/24/solid';
+import { useUnits } from '@/hooks/useUnits';
+import { formatWind } from '@/lib/units';
 
 interface BluebirdIndicatorProps {
   isBluebird: boolean;
@@ -9,6 +11,8 @@ interface BluebirdIndicatorProps {
 }
 
 export default function BluebirdIndicator({ isBluebird, skyCover, windSpeed }: BluebirdIndicatorProps) {
+  const { units } = useUnits();
+
   if (!isBluebird) return null;
 
   return (
@@ -25,7 +29,7 @@ export default function BluebirdIndicator({ isBluebird, skyCover, windSpeed }: B
             Perfect conditions: Clear skies and calm winds
           </div>
           <div className="text-xs sm:text-sm text-gray-300 mt-1 sm:mt-2">
-            Cloud cover: {Math.round(skyCover)}% • Wind: {Math.round(windSpeed)} mph
+            Cloud cover: {Math.round(skyCover)}% • Wind: {formatWind(windSpeed, units)}
           </div>
           <div className="text-xs text-gray-400 mt-1">
             Don&apos;t forget your sunscreen and goggles! ☀️
