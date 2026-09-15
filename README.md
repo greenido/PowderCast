@@ -41,6 +41,9 @@ actually ride.
 
 ### Everything else
 - **📏 Metric or imperial**, defaulting to the resort's local convention
+- **🔗 Shareable links** — the resort, elevation, view and region live in the
+  URL, so back/forward, refresh and bookmarks work and the share button sends
+  a friend exactly what you are looking at
 - **⭐ Favourites** and visibility-aware auto-refresh
 - **📹 Live webcams** for 25 major resorts, resort websites for the other 669
 

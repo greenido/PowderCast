@@ -12,7 +12,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:processing": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/nwsProcessing.test.ts",
-    "test": "yarn test:processing && yarn test:scoring && yarn test:units && yarn test:elevation && yarn test:schema",
+    "test": "yarn test:processing && yarn test:scoring && yarn test:units && yarn test:elevation && yarn test:schema && yarn test:url",
     "test:providers": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/providers.test.ts",
     "build:resorts": "node scripts/build-resorts.js",
     "verify:passes": "node scripts/build-resorts.js --check",
@@ -20,6 +20,7 @@
     "test:elevation": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/elevation.test.ts",
     "test:schema": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/resortSchema.test.ts",
     "test:scoring": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/scoring.test.ts",
+    "test:url": "TS_NODE_PROJECT=tsconfig.test.json ts-node tests/urlState.test.ts",
     "generate:icons": "node scripts/generate-icons.js"
   },
   "dependencies": {

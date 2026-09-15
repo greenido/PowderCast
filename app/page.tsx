@@ -15,26 +15,35 @@ import { useFavorites } from '@/hooks/useFavorites';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
 import { ResortsProvider, useResortsContext } from '@/hooks/useResorts';
 import { UnitsProvider, useUnits } from '@/hooks/useUnits';
+import { useResort } from '@/hooks/useResortSearch';
+import { useUrlState } from '@/hooks/useUrlState';
 import PassFilter from '@/components/PassFilter';
 import { usePassFilter } from '@/hooks/usePassFilter';
 import { filterByPasses } from '@/lib/passes';
 import { availableRegions, resortsInRegion, REGION_LABELS } from '@/lib/regions';
-import type { Resort, RegionCode } from '@/lib/types';
+import type { Resort } from '@/lib/types';
 import { StarIcon, BeakerIcon } from '@heroicons/react/24/solid';
+
+const DEFAULT_TITLE = "PowderCast - Ultimate Snowboarder's Weather Dashboard";
 
 function HomeContent() {
   const { allResorts, resortsLoading, resortsError } = useResortsContext();
 
-  const [selectedResort, setSelectedResort] = useState<Resort | null>(null);
-  const [elevation, setElevation] = useState<'base' | 'summit'>('base');
+  // View, resort, elevation and region live in the query string so back/forward,
+  // refresh, bookmarks and shared links all land on the same view.
+  const url = useUrlState();
+  const { view: viewMode, elevation, region: comparisonRegion } = url;
+  const { resort: selectedResort } = useResort(url.resortId);
+
   const [showFavorites, setShowFavorites] = useState(false);
   const [showProView, setShowProView] = useState(false);
-  const [viewMode, setViewMode] = useState<'single' | 'compare' | 'planner'>('single');
-  const [comparisonRegion, setComparisonRegion] = useState<RegionCode | 'Favorites'>('us-west');
 
   const { favorites, toggleFavorite, isFavorite, hasFavorites } = useFavorites(allResorts);
   const passFilter = usePassFilter();
   const { suggestForCountry } = useUnits();
+
+  const selectResort = (resort: Resort | null) =>
+    url.update({ view: 'single', resortId: resort?.id ?? null });
 
   // Adopt the resort's local convention (°C in the Alps, °F in the US) unless
   // the rider has picked a system explicitly.
@@ -67,6 +76,15 @@ function HomeContent() {
 
   return (
     <main className="min-h-screen p-4 sm:p-6 md:p-8 lg:p-12">
+      {/* Name the tab after the mountain so bookmarks and history entries are
+          recognisable. The page owns <title> outright (layout metadata sets
+          none): with two sources, Next's streamed metadata hydrates late and
+          wins over anything set here. */}
+      <title>
+        {viewMode === 'single' && selectedResort
+          ? `${selectedResort.name} · PowderCast`
+          : DEFAULT_TITLE}
+      </title>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -122,7 +140,7 @@ function HomeContent() {
         <div className="flex justify-center mb-8">
           <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 backdrop-blur-md shadow-inner text-sm">
             <button
-              onClick={() => setViewMode('single')}
+              onClick={() => url.update({ view: 'single' })}
               className={`px-4 sm:px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
                 viewMode === 'single'
                   ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md shadow-cyan-500/10'
@@ -133,12 +151,15 @@ function HomeContent() {
             </button>
             
             <button
-              onClick={() => {
-                setViewMode('compare');
-                if (comparisonRegion === 'Favorites') {
-                  setComparisonRegion(regions[0]?.code ?? 'us-west');
-                }
-              }}
+              onClick={() =>
+                url.update({
+                  view: 'compare',
+                  region:
+                    comparisonRegion === 'Favorites'
+                      ? (regions[0]?.code ?? 'us-west')
+                      : comparisonRegion,
+                })
+              }
               className={`px-4 sm:px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
                 viewMode === 'compare' && comparisonRegion !== 'Favorites'
                   ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md shadow-cyan-500/10'
@@ -149,7 +170,7 @@ function HomeContent() {
             </button>
 
             <button
-              onClick={() => setViewMode('planner')}
+              onClick={() => url.update({ view: 'planner' })}
               className={`px-4 sm:px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
                 viewMode === 'planner'
                   ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md shadow-cyan-500/10'
@@ -160,10 +181,7 @@ function HomeContent() {
             </button>
 
             <button
-              onClick={() => {
-                setViewMode('compare');
-                setComparisonRegion('Favorites');
-              }}
+              onClick={() => url.update({ view: 'compare', region: 'Favorites' })}
               className={`px-4 sm:px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
                 viewMode === 'compare' && comparisonRegion === 'Favorites'
                   ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md shadow-cyan-500/10'
@@ -187,7 +205,7 @@ function HomeContent() {
               {regions.map((region) => (
                 <button
                   key={region.code}
-                  onClick={() => setComparisonRegion(region.code)}
+                  onClick={() => url.update({ region: region.code }, 'replace')}
                   className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
                     comparisonRegion === region.code
                       ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400/30 font-bold'
@@ -213,10 +231,7 @@ function HomeContent() {
                     ? 'Favorites'
                     : REGION_LABELS[comparisonRegion]
                 }
-                onSelectResort={(resort) => {
-                  setSelectedResort(resort);
-                  setViewMode('single');
-                }}
+                onSelectResort={selectResort}
               />
 
 
@@ -230,7 +245,7 @@ function HomeContent() {
                 {regions.map((region) => (
                   <button
                     key={region.code}
-                    onClick={() => setComparisonRegion(region.code)}
+                    onClick={() => url.update({ region: region.code }, 'replace')}
                     className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
                       comparisonRegion === region.code
                         ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400/30 font-bold shadow-md shadow-cyan-500/5'
@@ -252,7 +267,7 @@ function HomeContent() {
                   Search for your favorite ski resorts in the <strong>Single Mountain</strong> view and click the gold star icon in the header. They will appear here for fast side-by-side condition comparison!
                 </p>
                 <button
-                  onClick={() => setViewMode('single')}
+                  onClick={() => url.update({ view: 'single' })}
                   className="mt-6 px-5 py-2.5 bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl font-semibold text-sm text-white transition-all shadow-md shadow-black/10"
                 >
                   Find Some Mountains
@@ -263,10 +278,7 @@ function HomeContent() {
 
                 <ComparisonDashboard
                   resorts={compareResorts}
-                  onSelectResort={(resort) => {
-                    setSelectedResort(resort);
-                    setViewMode('single');
-                  }}
+                  onSelectResort={selectResort}
                   title={comparisonRegion === 'Favorites' ? 'Favorites' : REGION_LABELS[comparisonRegion]}
                 />
 
@@ -281,7 +293,7 @@ function HomeContent() {
               <ErrorBoundary label="Search">
 
                 <SearchBar
-                  onSelectResort={setSelectedResort}
+                  onSelectResort={selectResort}
                   selectedResort={selectedResort}
                   isFavorite={isFavorite}
                   onToggleFavorite={toggleFavorite}
@@ -291,8 +303,28 @@ function HomeContent() {
               </ErrorBoundary>
             </div>
 
+            {/* A deep link waits for the resort list rather than flashing the welcome screen */}
+            {url.resortId && !selectedResort && (
+              <div className="glass-card text-center py-12">
+                {resortsLoading ? (
+                  <>
+                    <div className="text-4xl mb-4 animate-bounce">🌨️</div>
+                    <div className="text-xl text-gray-400">Loading resort...</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="text-4xl mb-4">🧭</div>
+                    <h2 className="text-xl font-bold text-white">That link doesn&apos;t match a resort</h2>
+                    <p className="mt-2 text-sm text-gray-400">
+                      It may have been renamed. Search for it above instead.
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Welcome message */}
-            {!selectedResort && (
+            {!url.resortId && (
               <div className="glass-card text-center py-12 sm:py-16">
                 <div className="text-4xl sm:text-5xl md:text-6xl mb-6">🏔️</div>
                 <h2 className="text-2xl sm:text-3xl font-bold mb-4 px-4 text-white">Welcome to PowderCast!</h2>
@@ -321,7 +353,7 @@ function HomeContent() {
 
                 <ElevationToggle
                   elevation={elevation}
-                  onToggle={setElevation}
+                  onToggle={(level) => url.update({ elevation: level }, 'replace')}
                   baseElevation={selectedResort.base_elevation}
                   summitElevation={selectedResort.summit_elevation}
                   source={weatherData?.source}
@@ -383,10 +415,7 @@ function HomeContent() {
 
       <FavoritesList
         favorites={favorites}
-        onSelectResort={(resort) => {
-          setSelectedResort(resort);
-          setViewMode('single');
-        }}
+        onSelectResort={selectResort}
         onRemoveFavorite={toggleFavorite}
         isOpen={showFavorites}
         onClose={() => setShowFavorites(false)}

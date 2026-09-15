@@ -6,8 +6,8 @@ const inter = Inter({ subsets: ["latin"] });
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
+// No `title` here: app/page.tsx renders it so it can name the selected resort.
 export const metadata: Metadata = {
-  title: "PowderCast - Ultimate Snowboarder's Weather Dashboard",
   description: "Hyper-local mountain weather data for US snowboarders. Get real-time snow quality, wind holds, and rider intelligence.",
   keywords: "snowboard, weather, ski resort, powder, snow forecast, mountain weather",
   viewport: "width=device-width, initial-scale=1, maximum-scale=5",
