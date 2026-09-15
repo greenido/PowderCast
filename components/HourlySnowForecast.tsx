@@ -1,10 +1,14 @@
 import type { HourlySnowData } from '@/lib/nwsTypes';
+import { useUnits } from '@/hooks/useUnits';
+import { formatSnow, formatTemp, formatWind } from '@/lib/units';
 
 interface HourlySnowForecastProps {
   hourlyData: HourlySnowData[];
 }
 
 export default function HourlySnowForecast({ hourlyData }: HourlySnowForecastProps) {
+  const { units } = useUnits();
+
   // Filter to show only hours with snowfall
   const snowHours = hourlyData.filter(h => h.snowfall > 0);
   
@@ -64,7 +68,7 @@ export default function HourlySnowForecast({ hourlyData }: HourlySnowForecastPro
               >
                 {/* Snowfall amount */}
                 <div className="text-base sm:text-lg font-bold text-cyan-400 mb-1">
-                  {hour.snowfall.toFixed(1)}&quot;
+                  {formatSnow(hour.snowfall, units)}
                 </div>
                 
                 {/* Visual bar */}
@@ -87,13 +91,13 @@ export default function HourlySnowForecast({ hourlyData }: HourlySnowForecastPro
                 
                 {/* Temperature */}
                 <div className="text-xs text-gray-300 mb-1">
-                  {hour.temperature}°F
+                  {formatTemp(hour.temperature, units)}
                 </div>
                 
                 {/* Wind speed */}
                 <div className="text-xs text-gray-400 flex items-center gap-1">
                   <span>💨</span>
-                  <span>{hour.windSpeed} mph</span>
+                  <span>{formatWind(hour.windSpeed, units)}</span>
                 </div>
                 
                 {/* Snow quality indicator */}

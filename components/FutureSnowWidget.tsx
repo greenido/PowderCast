@@ -1,4 +1,6 @@
 import type { HourlySnowData } from '@/lib/nwsTypes';
+import { useUnits } from '@/hooks/useUnits';
+import { formatSnow, formatTemp, formatWind } from '@/lib/units';
 
 interface FutureSnowWidgetProps {
   hourlyData: HourlySnowData[];
@@ -15,6 +17,8 @@ interface DailySnowSummary {
 }
 
 export default function FutureSnowWidget({ hourlyData }: FutureSnowWidgetProps) {
+  const { units } = useUnits();
+
   // Group hourly data by day
   const dailySummaries = groupByDay(hourlyData);
   
@@ -41,7 +45,7 @@ export default function FutureSnowWidget({ hourlyData }: FutureSnowWidgetProps) 
         <div className="text-right">
           <div className="text-xs text-gray-400">Total Expected</div>
           <div className="text-2xl font-bold text-cyan-400">
-            {totalForecastSnow.toFixed(1)}&quot;
+            {formatSnow(totalForecastSnow, units)}
           </div>
         </div>
       </div>
@@ -84,7 +88,7 @@ export default function FutureSnowWidget({ hourlyData }: FutureSnowWidgetProps) 
                 
                 <div className="text-right">
                   <div className={`text-3xl font-bold bg-gradient-to-r ${qualityColor} bg-clip-text text-transparent`}>
-                    {day.totalSnowfall.toFixed(1)}&quot;
+                    {formatSnow(day.totalSnowfall, units)}
                   </div>
                   <div className="text-xs text-gray-400">Expected</div>
                 </div>
@@ -94,14 +98,14 @@ export default function FutureSnowWidget({ hourlyData }: FutureSnowWidgetProps) 
                 <div className="text-center">
                   <div className="text-gray-400 text-xs mb-1">Avg Temp</div>
                   <div className="font-semibold text-white">
-                    {Math.round(day.avgTemperature)}°F
+                    {formatTemp(day.avgTemperature, units)}
                   </div>
                 </div>
                 
                 <div className="text-center">
                   <div className="text-gray-400 text-xs mb-1">Max Wind</div>
                   <div className="font-semibold text-white">
-                    {Math.round(day.maxWindSpeed)} mph
+                    {formatWind(day.maxWindSpeed, units)}
                   </div>
                 </div>
                 
@@ -133,7 +137,7 @@ export default function FutureSnowWidget({ hourlyData }: FutureSnowWidgetProps) 
                           >
                             {/* Tooltip on hover */}
                             <div className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 border border-white/20 rounded text-xs whitespace-nowrap z-10">
-                              {new Date(hour.time).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}: {hour.snowfall.toFixed(1)}&quot;
+                              {new Date(hour.time).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}: {formatSnow(hour.snowfall, units)}
                             </div>
                           </div>
                         </div>
