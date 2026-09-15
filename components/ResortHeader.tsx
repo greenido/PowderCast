@@ -7,58 +7,43 @@ import { StarIcon } from '@heroicons/react/24/solid';
 
 interface ResortHeaderProps {
   resort: Resort;
-  elevation: 'base' | 'summit';
   isFavorite: boolean;
   onToggleFavorite: () => void;
 }
 
+// Which elevation is showing lives in ElevationToggle, directly below; this
+// used to repeat it in a second block that cost a third of a phone screen.
 export default function ResortHeader({
   resort,
-  elevation,
   isFavorite,
   onToggleFavorite,
 }: ResortHeaderProps) {
   return (
     <div className="glass-card">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 sm:gap-3 mb-2">
-            <h2 className="text-2xl sm:text-3xl font-bold text-cyan-400">
-              {resort.name}
-            </h2>
-            <button
-              onClick={onToggleFavorite}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
-              aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-            >
-              <StarIcon
-                className={`w-5 h-5 sm:w-6 sm:h-6 ${
-                  isFavorite ? 'text-yellow-400' : 'text-gray-600'
-                }`}
-              />
-            </button>
-            <ShareButton
-              title={`${resort.name} · PowderCast`}
-              text={`Mountain forecast for ${resort.name}`}
-            />
-          </div>
-          <p className="text-sm sm:text-base text-gray-400">
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h2 className="text-2xl font-bold text-cyan-400 sm:text-3xl">{resort.name}</h2>
+          <p className="mt-1 text-sm text-gray-400 sm:text-base">
             {Array.from(new Set([resort.region, resort.state].filter(Boolean))).join(', ')} · {resort.country}
           </p>
           <PassBadgeList passes={resort.passes} className="mt-2" />
         </div>
-        <div className="text-left sm:text-right">
-          <div className="text-xs sm:text-sm text-gray-500 uppercase tracking-wider mb-1">
-            Current View
-          </div>
-          <div className="text-xl sm:text-2xl font-bold text-cyan-400">
-            {elevation === 'base' ? 'Base' : 'Summit'}
-          </div>
-          <div className="text-base sm:text-lg text-gray-400">
-            {elevation === 'base'
-              ? resort.base_elevation.toLocaleString()
-              : resort.summit_elevation.toLocaleString()}ft
-          </div>
+
+        <div className="flex shrink-0 items-center">
+          <button
+            onClick={onToggleFavorite}
+            className="rounded-lg p-2 transition-colors hover:bg-white/10"
+            aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+            aria-pressed={isFavorite}
+          >
+            <StarIcon
+              className={`h-5 w-5 sm:h-6 sm:w-6 ${isFavorite ? 'text-yellow-400' : 'text-gray-600'}`}
+            />
+          </button>
+          <ShareButton
+            title={`${resort.name} · PowderCast`}
+            text={`Mountain forecast for ${resort.name}`}
+          />
         </div>
       </div>
     </div>

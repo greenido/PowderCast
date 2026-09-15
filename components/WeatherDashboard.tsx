@@ -18,12 +18,14 @@ import DataFreshness from '@/components/DataFreshness';
 import FreezingLevelCard from '@/components/FreezingLevelCard';
 import BaseDepthCard from '@/components/BaseDepthCard';
 import WindAspectCard from '@/components/WindAspectCard';
+import TodaySummary from '@/components/TodaySummary';
 
 interface WeatherDashboardProps {
   weatherData: ProcessedWeatherData;
   /** Normalized series behind weatherData, for the raw Pro View. */
   forecast: NormalizedForecast | null;
   selectedResort: Resort;
+  elevation: 'base' | 'summit';
   showProView: boolean;
   error: string | null;
   lastFetchTime: number | null;
@@ -35,6 +37,7 @@ export default function WeatherDashboard({
   weatherData,
   forecast,
   selectedResort,
+  elevation,
   showProView,
   error,
   lastFetchTime,
@@ -47,6 +50,12 @@ export default function WeatherDashboard({
         <ProView forecast={forecast} />
       ) : (
         <>
+          <TodaySummary
+            weather={weatherData}
+            resort={selectedResort}
+            elevation={elevation}
+          />
+
           <AlertsSection
             snow24h={weatherData.snow24h}
             bluebirdDay={weatherData.bluebirdDay}
@@ -124,36 +133,6 @@ export default function WeatherDashboard({
             />
             <WebcamViewer resort={selectedResort} />
           </div>
-
-          {/* 7-Day Forecast — narrative periods, NWS only */}
-          {weatherData.periods.length > 0 && (
-          <div className="glass-card">
-            <h3 className="metric-label mb-4 sm:mb-6">7-Day Forecast</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {weatherData.periods.slice(0, 7).map((period) => (
-                <div
-                  key={period.number}
-                  className="bg-white/5 border border-white/10 rounded-lg p-3 sm:p-4 hover:bg-white/10 transition-all"
-                >
-                  <div className="font-semibold text-base sm:text-lg mb-2 text-cyan-400">
-                    {period.name}
-                  </div>
-                  <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-                    <div className="text-2xl sm:text-3xl font-bold">
-                      {period.temperature}°
-                    </div>
-                    <div className="text-xs sm:text-sm text-gray-400">
-                      {period.windSpeed}
-                    </div>
-                  </div>
-                  <div className="text-xs sm:text-sm text-gray-300">
-                    {period.shortForecast}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-          )}
         </>
       )}
 
