@@ -2,6 +2,7 @@
 
 import type { Resort } from '@/lib/types';
 import { PassBadgeList } from '@/components/PassBadge';
+import ShareButton from '@/components/ShareButton';
 import { StarIcon } from '@heroicons/react/24/solid';
 
 interface ResortHeaderProps {
@@ -36,6 +37,10 @@ export default function ResortHeader({
                 }`}
               />
             </button>
+            <ShareButton
+              title={`${resort.name} · PowderCast`}
+              text={`Mountain forecast for ${resort.name}`}
+            />
           </div>
           <p className="text-sm sm:text-base text-gray-400">
             {Array.from(new Set([resort.region, resort.state].filter(Boolean))).join(', ')} · {resort.country}
