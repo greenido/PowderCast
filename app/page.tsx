@@ -10,6 +10,7 @@ import ComparisonDashboard from '@/components/ComparisonDashboard';
 import PlannerGrid from '@/components/PlannerGrid';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import UnitsToggle from '@/components/UnitsToggle';
+import ViewTabs, { type ViewTab } from '@/components/ViewTabs';
 import { useForecast } from '@/hooks/useForecast';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
@@ -74,8 +75,56 @@ function HomeContent() {
       ? favorites
       : resortsInRegion(visibleResorts, comparisonRegion);
 
+  // The welcome screen keeps the full hero; everywhere else the chrome shrinks
+  // so the forecast starts on the first screen.
+  const showHero = viewMode === 'single' && !url.resortId;
+
+  const tabs: ViewTab[] = [
+    {
+      key: 'single',
+      label: 'Single Mountain',
+      short: 'Mountain',
+      emoji: '🏔️',
+      active: viewMode === 'single',
+      onSelect: () => url.update({ view: 'single' }),
+    },
+    {
+      key: 'compare',
+      label: 'Compare Regions',
+      short: 'Compare',
+      emoji: '📊',
+      active: viewMode === 'compare' && comparisonRegion !== 'Favorites',
+      onSelect: () =>
+        url.update({
+          view: 'compare',
+          region:
+            comparisonRegion === 'Favorites'
+              ? (regions[0]?.code ?? 'us-west')
+              : comparisonRegion,
+        }),
+    },
+    {
+      key: 'planner',
+      label: '7-Day Planner',
+      short: 'Planner',
+      emoji: '🗓️',
+      active: viewMode === 'planner',
+      onSelect: () => url.update({ view: 'planner' }),
+    },
+    {
+      key: 'favorites',
+      label: 'Compare Favorites',
+      short: 'Favorites',
+      emoji: '⭐',
+      active: viewMode === 'compare' && comparisonRegion === 'Favorites',
+      badge: favorites.length,
+      onSelect: () => url.update({ view: 'compare', region: 'Favorites' }),
+    },
+  ];
+
   return (
-    <main className="min-h-screen p-4 sm:p-6 md:p-8 lg:p-12">
+    // Bottom padding on phones clears the fixed tab bar.
+    <main className="min-h-screen px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom))] sm:p-6 md:p-8 lg:p-12">
       {/* Name the tab after the mountain so bookmarks and history entries are
           recognisable. The page owns <title> outright (layout metadata sets
           none): with two sources, Next's streamed metadata hydrates late and
@@ -86,28 +135,52 @@ function HomeContent() {
           : DEFAULT_TITLE}
       </title>
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent tracking-tight">
-            🏂 PowderCast
-          </h1>
-          <p className="text-base sm:text-lg md:text-xl text-gray-400 px-4">
-            The Ultimate Snowboarder&apos;s Weather App
-          </p>
+        {showHero ? (
+          <div className="text-center mb-8">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-3 sm:mb-4 bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent tracking-tight">
+              🏂 PowderCast
+            </h1>
+            <p className="text-base sm:text-lg md:text-xl text-gray-400 px-4">
+              The Ultimate Snowboarder&apos;s Weather App
+            </p>
 
-          {hasFavorites && viewMode === 'single' && (
-            <div className="mt-4">
-              <button
-                onClick={() => setShowFavorites(true)}
-                className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 hover:from-yellow-500/30 hover:to-yellow-600/30 border border-yellow-400/30 rounded-lg transition-all text-sm sm:text-base"
-              >
-                <StarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
-                <span className="font-semibold text-yellow-400">My Favorites</span>
-                <span className="text-xs text-gray-400">({favorites.length})</span>
+            {hasFavorites && (
+              <div className="mt-4">
+                <button
+                  onClick={() => setShowFavorites(true)}
+                  className="inline-flex items-center gap-2 px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 hover:from-yellow-500/30 hover:to-yellow-600/30 border border-yellow-400/30 rounded-lg transition-all text-sm sm:text-base"
+                >
+                  <StarIcon className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
+                  <span className="font-semibold text-yellow-400">My Favorites</span>
+                  <span className="text-xs text-gray-400">({favorites.length})</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Compact header once there is something to look at — the hero cost
+             most of a phone screen before the first number. */
+          <header className="mb-4 flex items-center justify-between gap-3 sm:mb-6">
+            <h1 className="bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-xl font-bold tracking-tight text-transparent sm:text-2xl">
+              <button onClick={() => url.update({ view: 'single', resortId: null })}>
+                🏂 PowderCast
               </button>
+            </h1>
+            <div className="flex items-center gap-1 sm:gap-2">
+              {hasFavorites && (
+                <button
+                  onClick={() => setShowFavorites(true)}
+                  className="rounded-lg p-2 transition-colors hover:bg-white/10"
+                  aria-label={`My favorites (${favorites.length})`}
+                  title="My favorites"
+                >
+                  <StarIcon className="h-5 w-5 text-yellow-400" />
+                </button>
+              )}
+              <UnitsToggle />
             </div>
-          )}
-        </div>
+          </header>
+        )}
 
         {resortsError && (
           <div className="glass-card mb-6 border border-red-400/30 text-center">
@@ -123,80 +196,25 @@ function HomeContent() {
           </div>
         )}
 
-        {/* Pass filter — the question that decides where people actually ski */}
-        <div className="mb-6">
-          <PassFilter
-            resorts={allResorts}
-            selected={passFilter.selected}
-            onToggle={passFilter.toggle}
-            onClear={passFilter.clear}
-          />
-          <div className="mt-3 flex justify-center">
-            <UnitsToggle />
+        {/* Pass filter — the question that decides where people actually ski.
+            Hidden on a resort's page, which it does not affect. */}
+        {(showHero || viewMode !== 'single') && (
+          <div className="mb-6">
+            <PassFilter
+              resorts={allResorts}
+              selected={passFilter.selected}
+              onToggle={passFilter.toggle}
+              onClear={passFilter.clear}
+            />
+            {showHero && (
+              <div className="mt-3 flex justify-center">
+                <UnitsToggle />
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
-        {/* View Mode Switcher */}
-        <div className="flex justify-center mb-8">
-          <div className="flex bg-white/5 p-1 rounded-xl border border-white/10 backdrop-blur-md shadow-inner text-sm">
-            <button
-              onClick={() => url.update({ view: 'single' })}
-              className={`px-4 sm:px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
-                viewMode === 'single'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md shadow-cyan-500/10'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              🏔️ Single Mountain
-            </button>
-            
-            <button
-              onClick={() =>
-                url.update({
-                  view: 'compare',
-                  region:
-                    comparisonRegion === 'Favorites'
-                      ? (regions[0]?.code ?? 'us-west')
-                      : comparisonRegion,
-                })
-              }
-              className={`px-4 sm:px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
-                viewMode === 'compare' && comparisonRegion !== 'Favorites'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md shadow-cyan-500/10'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              📊 Compare Regions
-            </button>
-
-            <button
-              onClick={() => url.update({ view: 'planner' })}
-              className={`px-4 sm:px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
-                viewMode === 'planner'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md shadow-cyan-500/10'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              🗓️ 7-Day Planner
-            </button>
-
-            <button
-              onClick={() => url.update({ view: 'compare', region: 'Favorites' })}
-              className={`px-4 sm:px-5 py-2.5 rounded-lg font-bold transition-all flex items-center gap-1.5 ${
-                viewMode === 'compare' && comparisonRegion === 'Favorites'
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-500 text-white shadow-md shadow-cyan-500/10'
-                  : 'text-gray-400 hover:text-white'
-              }`}
-            >
-              ⭐ Compare Favorites
-              {favorites.length > 0 && (
-                <span className="text-[10px] bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded-full border border-yellow-400/20 font-bold shrink-0">
-                  {favorites.length}
-                </span>
-              )}
-            </button>
-          </div>
-        </div>
+        <ViewTabs tabs={tabs} />
 
         {/* 7-DAY PLANNER MODE */}
         {viewMode === 'planner' ? (
@@ -346,7 +364,6 @@ function HomeContent() {
               <div className="space-y-4 sm:space-y-6">
                 <ResortHeader
                   resort={selectedResort}
-                  elevation={elevation}
                   isFavorite={isFavorite(selectedResort.id)}
                   onToggleFavorite={() => toggleFavorite(selectedResort.id)}
                 />
@@ -357,23 +374,24 @@ function HomeContent() {
                   baseElevation={selectedResort.base_elevation}
                   summitElevation={selectedResort.summit_elevation}
                   source={weatherData?.source}
+                  trailing={
+                    <button
+                      onClick={() => setShowProView(!showProView)}
+                      aria-pressed={showProView}
+                      title="Every raw forecast series"
+                      className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-semibold transition-all ${
+                        showProView
+                          ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white'
+                          : 'border border-white/20 bg-white/10 hover:bg-white/20'
+                      }`}
+                    >
+                      <BeakerIcon className="h-4 w-4" />
+                      <span>
+                        Pro<span className="hidden sm:inline"> View</span>
+                      </span>
+                    </button>
+                  }
                 />
-
-                {/* Pro View Toggle */}
-                <div className="flex justify-center">
-                  <button
-                    onClick={() => setShowProView(!showProView)}
-                    className={`inline-flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-all ${
-                      showProView
-                        ? 'bg-gradient-to-r from-purple-500 to-blue-500 text-white'
-                        : 'bg-white/10 hover:bg-white/20 border border-white/20'
-                    }`}
-                  >
-                    <BeakerIcon className="w-5 h-5" />
-                    <span>{showProView ? 'Hide Pro View' : 'Show Pro View'}</span>
-                    <span className="text-xs opacity-75">(All Data)</span>
-                  </button>
-                </div>
 
                 {loading && !weatherData && (
                   <div className="glass-card text-center py-12">
@@ -397,6 +415,7 @@ function HomeContent() {
                       weatherData={weatherData}
                       forecast={forecast}
                       selectedResort={selectedResort}
+                      elevation={elevation}
                       showProView={showProView}
                       error={error}
                       lastFetchTime={lastFetchTime}

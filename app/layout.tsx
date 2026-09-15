@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
@@ -10,8 +10,6 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 export const metadata: Metadata = {
   description: "Hyper-local mountain weather data for US snowboarders. Get real-time snow quality, wind holds, and rider intelligence.",
   keywords: "snowboard, weather, ski resort, powder, snow forecast, mountain weather",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=5",
-  themeColor: "#0ea5e9",
   icons: {
     icon: [
       { url: `${basePath}/favicon.svg`, type: "image/svg+xml" },
@@ -23,6 +21,16 @@ export const metadata: Metadata = {
       { url: `${basePath}/apple-touch-icon.png`, sizes: "180x180", type: "image/png" },
     ],
   },
+};
+
+// viewport-fit=cover makes env(safe-area-inset-bottom) non-zero on iPhones,
+// so the phone tab bar can sit above the home indicator instead of under it.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+  themeColor: "#0ea5e9",
 };
 
 export default function RootLayout({

@@ -26,6 +26,9 @@ actually ride.
 - **📊 Region comparison** — side-by-side conditions and Ride Scores
 
 ### Conditions
+- **🎯 Today at a glance** — the Ride Score and the four numbers that decide
+  the day (new snow, temperature, gusts, snow line) at the top of every resort,
+  on the first screen of a phone
 - **🌡️ Snow line** — where the freezing level sits relative to base and summit,
   i.e. whether it's raining at the bottom. The most important number in the
   Alps and the maritime US ranges.

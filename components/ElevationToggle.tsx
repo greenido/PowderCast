@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowsUpDownIcon } from '@heroicons/react/24/outline';
+import type { ReactNode } from 'react';
 import { useUnits } from '@/hooks/useUnits';
 import { formatElevation } from '@/lib/units';
 
@@ -11,6 +11,8 @@ interface ElevationToggleProps {
   summitElevation: number;
   /** Which provider served the data, so we can say how elevation was handled. */
   source?: string;
+  /** Extra controls on the same row, e.g. the Pro View switch. */
+  trailing?: ReactNode;
 }
 
 export default function ElevationToggle({
@@ -19,6 +21,7 @@ export default function ElevationToggle({
   baseElevation,
   summitElevation,
   source,
+  trailing,
 }: ElevationToggleProps) {
   const { units } = useUnits();
 
@@ -27,30 +30,39 @@ export default function ElevationToggle({
   const isModelled = source === 'nws' && elevation === 'summit';
 
   return (
-    <div className="glass-card">
-      <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-        <div className="flex items-center gap-3">
-          <ArrowsUpDownIcon className="h-5 w-5 text-cyan-400 sm:h-6 sm:w-6" />
-          <span className="text-base font-semibold sm:text-lg">Elevation View</span>
-        </div>
-
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+    <div className="glass-card py-3 sm:py-4">
+      <div className="flex items-center gap-2 sm:gap-3">
+        <div
+          className="grid flex-1 grid-cols-2 gap-1 rounded-xl bg-black/20 p-1 sm:max-w-md"
+          role="group"
+          aria-label="Forecast elevation"
+        >
           {(['base', 'summit'] as const).map((level) => (
             <button
               key={level}
               onClick={() => onToggle(level)}
               aria-pressed={elevation === level}
-              className={`rounded-lg px-4 py-2.5 text-sm font-semibold transition-all sm:px-6 sm:py-3 sm:text-base ${
+              className={`rounded-lg px-3 py-1.5 text-center transition-all ${
                 elevation === level
                   ? 'bg-cyan-400 text-slate-900'
-                  : 'bg-white/10 text-white hover:bg-white/20'
+                  : 'text-white hover:bg-white/10'
               }`}
             >
-              {level === 'base' ? 'Base' : 'Summit'} (
-              {formatElevation(level === 'base' ? baseElevation : summitElevation, units)})
+              <span className="block text-sm font-bold">
+                {level === 'base' ? 'Base' : 'Summit'}
+              </span>
+              <span
+                className={`block text-[11px] tabular-nums ${
+                  elevation === level ? 'text-slate-800' : 'text-gray-400'
+                }`}
+              >
+                {formatElevation(level === 'base' ? baseElevation : summitElevation, units)}
+              </span>
             </button>
           ))}
         </div>
+
+        {trailing}
       </div>
 
       {isModelled && (
