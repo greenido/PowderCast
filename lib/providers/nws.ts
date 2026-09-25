@@ -6,6 +6,7 @@ import {
   sumAccumulationForward,
   getAverageForward,
 } from '@/lib/nwsProcessing';
+import { measureCoverage } from '@/lib/series';
 import type { NWSGridDataValue } from '@/lib/nwsTypes';
 
 const API_BASE = 'https://api.weather.gov';
@@ -62,6 +63,8 @@ export class NWSProvider implements WeatherProvider {
   // NWS gridpoints are 2.5km cells with a single representative elevation.
   // They cannot resolve a base/summit split; the caller applies a lapse rate.
   readonly resolvesElevation = false;
+  // No snow-depth field, and gridpoints start at the current hour.
+  readonly suppliesSnowDepthAndHistory = false;
 
   covers(lat: number, lon: number): boolean {
     return coversUS(lat, lon);
@@ -104,6 +107,15 @@ export class NWSProvider implements WeatherProvider {
       humidityPct: resample(props.relativeHumidity?.values, startHour, FORECAST_HOURS),
       // uom mm — already SI. Accumulating, so prorate across the block.
       snowfallMm: resample(props.snowfallAmount?.values, startHour, FORECAST_HOURS, true),
+      // Liquid-equivalent QPF, uom mm. NWS forecasts snowfall for the grid
+      // cell's own elevation only, so a summit 2,000ft higher needs this to
+      // reconstruct what falls as snow up there — see lib/lapseRate.ts.
+      precipMm: resample(
+        props.quantitativePrecipitation?.values,
+        startHour,
+        FORECAST_HOURS,
+        true
+      ),
       precipProbPct: resample(
         props.probabilityOfPrecipitation?.values,
         startHour,
@@ -118,7 +130,9 @@ export class NWSProvider implements WeatherProvider {
       // NWS `snowLevel` is the snow/rain line in metres — the same concept as
       // Open-Meteo's freezing level for our purposes.
       freezingLevelM: resample(props.snowLevel?.values, startHour, FORECAST_HOURS),
-      // NWS publishes no snow-depth field. Left null; the UI hides the card.
+      // NWS publishes no snow-depth field and no history. Both are grafted on
+      // from Open-Meteo in lib/providers/index.ts rather than left null, which
+      // used to cost every US resort its base depth card.
       snowDepthCm: new Array(FORECAST_HOURS).fill(null),
     };
 
@@ -133,6 +147,7 @@ export class NWSProvider implements WeatherProvider {
         timezone: point.properties.timeZone,
       },
       hourly,
+      coverage: measureCoverage(hourly),
       narrative: narrative.properties.periods,
       fetchedAt: Date.now(),
       attribution: 'NOAA / National Weather Service',

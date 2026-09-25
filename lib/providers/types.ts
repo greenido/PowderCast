@@ -21,5 +21,11 @@ export interface WeatherProvider {
   covers(lat: number, lon: number): boolean;
   /** True when the provider's own model resolves elevation. */
   readonly resolvesElevation: boolean;
+  /**
+   * True when the provider serves settled snow depth and trailing history
+   * itself. When false the routing layer grafts both on from Open-Meteo --
+   * see lib/providers/supplement.ts.
+   */
+  readonly suppliesSnowDepthAndHistory: boolean;
   fetchForecast(request: ForecastRequest): Promise<NormalizedForecast>;
 }

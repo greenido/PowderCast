@@ -26,6 +26,18 @@ export interface DayOutlook {
   snowQuality: SnowQuality;
   /** 0-100, same spirit as Ride Score but computed per day. */
   score: number;
+  /**
+   * False when the forecast carries no values for this day at all.
+   *
+   * Without this the grid fabricated a forecast. A day with no data produced
+   * empty value lists, and every default that filled in for them happened to be
+   * a good one -- 32°F, no gusts, no cloud -- so days 3-7 of the Alpine planner
+   * scored a confident 45 "Fair Groomers" out of nothing. ICON-D2 stops at 49
+   * hours, so that was every Austrian, Swiss and Dolomites resort in the grid.
+   * Merging the global model in fixes the cause; this makes the symptom
+   * impossible for the next provider that comes up short.
+   */
+  hasData: boolean;
 }
 
 export interface ResortOutlook {
@@ -100,9 +112,12 @@ export function buildOutlook(
       maxGustMph: gusts.length ? kmhToMph(Math.max(...gusts)) : 0,
       avgCloudPct: mean(clouds),
       snowQuality: determineSnowQuality(celsiusToFahrenheit(classifyTempC)),
+      // Temperature is the marker: no provider forecasts snow or wind for an
+      // hour it has no temperature for.
+      hasData: temps.length > 0,
     };
 
-    return { ...base, score: scoreDay(base) };
+    return { ...base, score: base.hasData ? scoreDay(base) : 0 };
   });
 
   // A 7*24h window from "now" straddles 8 local calendar days (a partial today
@@ -110,8 +125,10 @@ export function buildOutlook(
   // label and the trailing stub — often only an hour or two — is dropped.
   const windowDays = outlookDays.slice(0, days);
 
+  // A day nobody forecast cannot be the best day.
   const best = windowDays.reduce<DayOutlook | null>(
-    (bestSoFar, day) => (!bestSoFar || day.score > bestSoFar.score ? day : bestSoFar),
+    (bestSoFar, day) =>
+      day.hasData && (!bestSoFar || day.score > bestSoFar.score) ? day : bestSoFar,
     null
   );
 

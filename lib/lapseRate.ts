@@ -36,6 +36,34 @@ export function lapseRateCPerKm(humidityPct: number | null): number {
 }
 
 /**
+ * Snow-to-liquid ratio: mm of settled snow per mm of liquid-equivalent
+ * precipitation, as a function of temperature.
+ *
+ * The "10:1 rule" is a convenient fiction. Crystal growth is most efficient
+ * around -15°C, where a millimetre of water arrives as nearly two centimetres
+ * of dendrites; near freezing the same millimetre packs into 4-6mm of wet
+ * mush, and above about +2°C it is simply rain. This is a coarse
+ * Kuchera-style approximation of that curve -- enough to tell powder from
+ * Slurpee, not enough to claim a density forecast.
+ *
+ * Returns 0 when it is too warm to snow, which is the load-bearing case: it is
+ * how a base at +4°C stops reporting the summit's snowfall.
+ */
+export function snowToLiquidRatio(tempC: number): number {
+  if (!Number.isFinite(tempC)) return 0;
+  if (tempC > 2) return 0; // Rain.
+  if (tempC > 1) return 4; // Sleet and slush.
+  if (tempC > 0) return 6;
+  if (tempC > -2) return 8;
+  if (tempC > -4) return 10;
+  if (tempC > -7) return 13;
+  if (tempC > -10) return 15;
+  if (tempC > -15) return 18; // Dendritic growth peak.
+  if (tempC > -20) return 15;
+  return 12; // Too cold to hold much moisture.
+}
+
+/**
  * Wind speed increases with elevation as terrain roughness falls away and
  * exposure rises. Summits routinely see 1.3-1.8x the wind of the valley
  * floor; this is a conservative approximation, not a boundary-layer model.
@@ -82,12 +110,52 @@ export function applyElevationCorrection(
   const scaleWind = (series: Array<number | null>) =>
     series.map((v) => (v === null || v === undefined ? v : v * multiplier));
 
-  // Note: snowfall is deliberately NOT corrected. Precipitation that falls as
-  // rain at the base can arrive as snow at the summit, but converting it needs
-  // the liquid-equivalent precipitation amount, which this series does not
-  // carry. Estimating an accumulation the model never produced would be worse
-  // than under-reporting, so the snow figures pass through untouched and the
-  // UI labels the corrected view as modelled.
+  // Snowfall, re-phased for the target elevation.
+  //
+  // This used to pass through untouched, because converting rain to snow needs
+  // the liquid-equivalent amount and the series did not carry it. It does now
+  // (NWS publishes quantitativePrecipitation), so the two cases that actually
+  // decide a day can be answered: rain at the base arriving as snow at the
+  // summit, and the reverse -- the three-hour drive to ride a Slurpee.
+  //
+  // Where the model already forecasts snow, its own number is kept and only
+  // re-scaled for the density change with height; the ratio is only used to
+  // build an amount from scratch when the model said rain at its own
+  // elevation. Inventing more snow than the model's moisture allows would be a
+  // worse failure than under-reporting.
+  const snowfallMm = h.snowfallMm.map((native, i) => {
+    const precip = h.precipMm[i];
+    const nativeTempC = h.temperatureC[i];
+    const targetTempC = temperatureC[i];
+
+    // No moisture figure, or no temperature to phase it with: leave it alone.
+    if (
+      precip === null ||
+      precip === undefined ||
+      !Number.isFinite(precip) ||
+      targetTempC === null ||
+      targetTempC === undefined
+    ) {
+      return native;
+    }
+
+    const targetRatio = snowToLiquidRatio(targetTempC);
+    if (targetRatio === 0) return 0; // Rain at the target elevation.
+
+    const nativeRatio =
+      nativeTempC === null || nativeTempC === undefined
+        ? 0
+        : snowToLiquidRatio(nativeTempC);
+
+    // The model forecast snow here: keep its amount, adjust only for density.
+    if (nativeRatio > 0 && native !== null && native !== undefined && native > 0) {
+      return native * (targetRatio / nativeRatio);
+    }
+
+    // The model forecast rain (or nothing) here, but it is below freezing at
+    // the target. Build the accumulation from the moisture it did forecast.
+    return precip * targetRatio;
+  });
 
   return {
     ...forecast,
@@ -99,6 +167,7 @@ export function applyElevationCorrection(
       ...h,
       temperatureC,
       dewpointC,
+      snowfallMm,
       windSpeedKmh: scaleWind(h.windSpeedKmh),
       windGustKmh: scaleWind(h.windGustKmh),
     },

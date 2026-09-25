@@ -11,7 +11,15 @@ import {
   MapIcon,
 } from '@heroicons/react/24/solid';
 import type { NormalizedForecast } from '@/lib/types';
-import { sumOver, maxOver, minOver, avgOver, valueAt } from '@/lib/series';
+import {
+  sumOver,
+  sumOverOrNull,
+  sumBack,
+  maxOver,
+  minOver,
+  avgOver,
+  valueAt,
+} from '@/lib/series';
 import { useUnits } from '@/hooks/useUnits';
 import {
   formatSnow,
@@ -86,6 +94,9 @@ export default function ProView({ forecast }: ProViewProps) {
   const height = (m: number | null) => (m === null ? NA : formatElevation(metersToFeet(m), units));
   const pct = (v: number | null) => (v === null ? NA : `${Math.round(v)}%`);
   const snow = (mm: number) => formatSnow(mmToInches(mm), units);
+  // Distinct from snow(): null means the series has no data for that window,
+  // which is not the same claim as zero.
+  const snowOrNA = (mm: number | null) => (mm === null ? NA : snow(mm));
 
   const sections: Section[] = [
     {
@@ -93,9 +104,12 @@ export default function ProView({ forecast }: ProViewProps) {
       icon: <CloudIcon className="h-5 w-5" />,
       color: 'cyan',
       fields: [
+        { label: 'Observed 24h snow', value: snowOrNA(sumBack(h.snowfallMm, t, now, 24)) },
+        { label: 'Observed 48h snow', value: snowOrNA(sumBack(h.snowfallMm, t, now, 48)) },
         { label: 'Next 24h snow', value: snow(sumOver(h.snowfallMm, t, now, 24)) },
         { label: 'Next 48h snow', value: snow(sumOver(h.snowfallMm, t, now, 48)) },
         { label: 'Next 7-day snow', value: snow(sumOver(h.snowfallMm, t, now, 168)) },
+        { label: 'Next 7-day liquid equivalent', value: snowOrNA(sumOverOrNull(h.precipMm, t, now, 168)) },
         {
           label: 'Peak hourly rate',
           value: snow(maxOver(h.snowfallMm, t, now, 168) ?? 0) + '/h',
@@ -115,6 +129,17 @@ export default function ProView({ forecast }: ProViewProps) {
         },
         { label: 'Current precip probability', value: pct(valueAt(h.precipProbPct, t, now)) },
         { label: 'Max precip probability (24h)', value: pct(maxOver(h.precipProbPct, t, now, 24)) },
+        ...(forecast.ensemble ?? []).map((member) => ({
+          label: `7-day snow · ${member.label}`,
+          value: snowOrNA(sumOverOrNull(member.snowfallMm, t, now, 168)),
+        })),
+        {
+          label: 'Snowfall coverage (7d)',
+          value:
+            forecast.coverage?.snowfallMm === undefined
+              ? NA
+              : `${Math.round(forecast.coverage.snowfallMm * 100)}% of hours`,
+        },
       ],
     },
     {
