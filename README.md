@@ -170,8 +170,10 @@ yarn dev           # → http://localhost:3000
 `public/resorts.json` is committed, so you only need `yarn build:resorts` if
 you want to regenerate it from OpenSkiMap.
 
-Pushing to `main` runs the unit tests, builds the static export and deploys to
-GitHub Pages ([deploy.yml](.github/workflows/deploy.yml)).
+Every pull request is linted, typechecked, tested and built
+([ci.yml](.github/workflows/ci.yml)). Pushing to `main` runs the same gate and
+then deploys the static export to GitHub Pages
+([deploy.yml](.github/workflows/deploy.yml)).
 
 ## 🏗️ Architecture
 
@@ -282,10 +284,10 @@ Midwest Epic hills are), its upstream name changed, or it left the pass.
 | `yarn dev` | Development server |
 | `yarn build` | Static export to `./out` |
 | `yarn lint` | ESLint |
+| `yarn typecheck` | TypeScript, including the test suites |
 | `yarn test` | Unit tests (no network) |
-| `yarn test:merge` | Model merging, coverage, snow phase and the graft |
-| `yarn test:cache` | Forecast cache eviction and fetch cancellation |
-| `yarn test:providers` | Live provider contract tests (hits the network) |
+| `yarn test <name>` | One suite, matched by substring — `yarn test scoring` |
+| `yarn test:network` | Live contract tests (hits the network) |
 | `yarn build:resorts` | Regenerate `public/resorts.json` from OpenSkiMap |
 | `yarn build:resorts --refresh` | Re-download the source dataset first |
 | `yarn verify:passes` | Check every pass entry still matches a resort |
@@ -294,9 +296,21 @@ Midwest Epic hills are), its upstream name changed, or it left the pass.
 ## 🧪 Testing
 
 ```bash
-yarn test              # 176 assertions across 9 suites, no network, ~14s
-yarn test:providers    # live contract tests against NWS + Open-Meteo
+yarn test              # 176 assertions across 9 suites, no network, ~13s
+yarn test scoring      # just one suite
+yarn test:network      # live contract tests against NWS + Open-Meteo
 ```
+
+Suites are **discovered from `tests/`**, not registered by hand. A file named
+`*.test.ts` is picked up by existing; one that reaches the network says so with
+an `@network` marker in its header comment and is excluded from `yarn test`.
+
+Both of those exist because of what the old setup did. Suites were chained with
+`&&`, so the first failure hid every suite after it — one round trip through CI
+per broken suite. And each had to be listed in `package.json`, which is easy to
+forget: `new-features.test.ts` and `weather-api.test.ts` never were, and had
+gone unrun for their whole existence. Every suite now runs, and the summary
+lists all of them.
 
 The unit suite runs on synthetic data and a captured NWS gridpoint fixture
 (`tests/fixtures/nws-gridpoint-REV-28-94.json`). It covers NWS processing,

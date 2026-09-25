@@ -7,6 +7,9 @@
  * Tests:
  * 1. NWS (National Weather Service) API - Main weather data source
  * 2. Resort data loading - Verifies resort coordinates
+ *
+ * @network — hits live APIs, so it is excluded from `yarn test` and run
+ * with `yarn test:network`. CI must not fail because NOAA is having a morning.
  */
 
 import { strict as assert } from 'assert';
@@ -609,8 +612,11 @@ async function runAllTests() {
   process.exit(testResults.failed > 0 ? 1 : 0);
 }
 
-// Run tests
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Run tests when executed directly.
+//
+// This was `import.meta.url === ...`, which cannot compile under the CommonJS
+// module setting the test config uses — so the suite had never actually run.
+if (require.main === module) {
   runAllTests().catch((error) => {
     console.error('Fatal error running tests:', error);
     process.exit(1);

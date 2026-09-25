@@ -24,11 +24,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          # Single source of truth, shared with ci.yml and local `nvm use`.
+          node-version-file: '.nvmrc'
           cache: 'yarn'
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
+
+      # Pull requests are gated by ci.yml; this is the gate on main itself, so
+      # a direct push or an unreviewed merge cannot deploy a broken build.
+      - name: Typecheck
+        run: yarn typecheck
 
       - name: Run unit tests
         run: yarn test

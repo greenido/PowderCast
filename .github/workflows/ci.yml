@@ -1,0 +1,77 @@
+# Runs on every pull request.
+#
+# Until now nothing did: deploy.yml triggers only on a push to main, so a PR's
+# checks were a secrets scan and nothing else, and a regression was found by
+# the deploy that followed the merge rather than by the PR that caused it.
+#
+# Pushes to main stay covered by deploy.yml, which runs the same gate before it
+# publishes. Splitting them keeps each run doing one job and avoids testing the
+# same commit twice.
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+# A new push to a PR makes the previous run irrelevant.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Lint, typecheck, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      # Each step runs even if an earlier one failed, so one push surfaces
+      # every problem rather than the first one. The job still fails overall.
+      - name: Lint
+        id: lint
+        if: '!cancelled()'
+        run: yarn lint
+
+      - name: Typecheck
+        id: typecheck
+        if: '!cancelled()'
+        run: yarn typecheck
+
+      - name: Unit tests
+        id: test
+        if: '!cancelled()'
+        run: yarn test
+
+      - name: Build static export
+        id: build
+        if: '!cancelled()'
+        run: yarn build
+
+      # Belt and braces: `if: !cancelled()` lets a step run after a failure,
+      # so without this the job could be green with a red step.
+      - name: Fail if any step failed
+        if: '!cancelled()'
+        run: |
+          failed=""
+          [ "${{ steps.lint.outcome }}" = "failure" ] && failed="$failed lint"
+          [ "${{ steps.typecheck.outcome }}" = "failure" ] && failed="$failed typecheck"
+          [ "${{ steps.test.outcome }}" = "failure" ] && failed="$failed test"
+          [ "${{ steps.build.outcome }}" = "failure" ] && failed="$failed build"
+          if [ -n "$failed" ]; then
+            echo "::error::Failed:$failed"
+            exit 1
+          fi
+          echo "All checks passed."
