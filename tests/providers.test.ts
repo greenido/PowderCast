@@ -6,6 +6,9 @@
  * fast/pre-commit loop.
  *
  *   yarn test:providers
+ *
+ * @network — hits live APIs, so it is excluded from `yarn test` and run
+ * with `yarn test:network`. CI must not fail because NOAA is having a morning.
  */
 
 import { strict as assert } from 'assert';
