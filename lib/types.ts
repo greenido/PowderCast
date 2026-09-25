@@ -93,6 +93,15 @@ export interface HourlySeries {
   humidityPct: Array<number | null>;
   /** Snowfall accumulated within each hour, in mm. */
   snowfallMm: Array<number | null>;
+  /**
+   * Liquid-equivalent precipitation within each hour, in mm.
+   *
+   * Distinct from snowfallMm: 1mm of water is roughly 10mm of settled snow at
+   * -5°C and nearly 20mm at -15°C. Carrying it is what makes a summit snow
+   * estimate possible when the provider only forecasts snow for the valley --
+   * see lib/lapseRate.ts.
+   */
+  precipMm: Array<number | null>;
   precipProbPct: Array<number | null>;
   windSpeedKmh: Array<number | null>;
   windGustKmh: Array<number | null>;
@@ -122,6 +131,32 @@ export interface NarrativePeriod {
   probabilityOfPrecipitation?: { value: number | null };
 }
 
+/**
+ * One model's snowfall series, kept alongside the merged forecast.
+ *
+ * A single number implies a precision nobody has. Two models that both say
+ * 10in is a very different decision from one saying 4in and another 16in, and
+ * the second case is exactly when someone is deciding whether to drive three
+ * hours. Open-Meteo returns several models in one request, so the spread is
+ * free -- it just has to survive normalization.
+ */
+export interface ModelSeries {
+  /** Provider's model id, e.g. "dwd_icon_d2". */
+  model: string;
+  /** Human-readable label for the UI. */
+  label: string;
+  /** Snowfall per hour, in mm, on the same time grid as HourlySeries. */
+  snowfallMm: Array<number | null>;
+}
+
+/**
+ * Fraction (0-1) of the forward window each series actually covers.
+ *
+ * Absent means "not measured". See coverageOver() in lib/series.ts for why
+ * this is load-bearing rather than diagnostic.
+ */
+export type FieldCoverage = Partial<Record<keyof HourlySeries, number>>;
+
 export interface NormalizedForecast {
   source: ProviderId;
   /** Specific numerical model, when the provider exposes one. */
@@ -137,6 +172,13 @@ export interface NormalizedForecast {
   hourly: HourlySeries;
   /** Prose forecast. NWS only; Open-Meteo has no equivalent. */
   narrative?: NarrativePeriod[];
+  /**
+   * Per-model snowfall, when more than one model answered. Absent when only
+   * one model was available, which is the honest signal for "no spread known".
+   */
+  ensemble?: ModelSeries[];
+  /** How much of the forward window each series covers. */
+  coverage?: FieldCoverage;
   fetchedAt: number;
   attribution: string;
   /** Raw upstream URL, surfaced in Pro View. */
@@ -150,6 +192,7 @@ export function emptyHourlySeries(): HourlySeries {
     dewpointC: [],
     humidityPct: [],
     snowfallMm: [],
+    precipMm: [],
     precipProbPct: [],
     windSpeedKmh: [],
     windGustKmh: [],

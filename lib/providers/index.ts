@@ -3,6 +3,7 @@ import type { NormalizedForecast } from '@/lib/types';
 import { NWSProvider } from './nws';
 import { OpenMeteoProvider } from './openMeteo';
 import { applyElevationCorrection } from '@/lib/lapseRate';
+import { withSnowDepthAndHistory } from './supplement';
 
 export type { WeatherProvider, ForecastRequest } from './types';
 export { NWSProvider } from './nws';
@@ -52,10 +53,22 @@ export async function fetchForecast(
   const serve = async (provider: WeatherProvider) => {
     const forecast = await provider.fetchForecast(request);
 
-    if (provider.resolvesElevation || request.elevationM === undefined) {
-      return forecast;
-    }
-    return applyElevationCorrection(forecast, request.elevationM);
+    const corrected =
+      provider.resolvesElevation || request.elevationM === undefined
+        ? forecast
+        : applyElevationCorrection(forecast, request.elevationM);
+
+    // NWS has neither snow depth nor history. Grafted on after the elevation
+    // correction, because neither is something a lapse rate should touch:
+    // settled depth is a measurement, not a forecast temperature.
+    if (provider.suppliesSnowDepthAndHistory) return corrected;
+
+    return withSnowDepthAndHistory(corrected, {
+      lat: request.lat,
+      lon: request.lon,
+      elevationM: request.elevationM,
+      signal: request.signal,
+    });
   };
 
   try {

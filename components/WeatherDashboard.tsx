@@ -17,6 +17,7 @@ import ProView from '@/components/ProView';
 import DataFreshness from '@/components/DataFreshness';
 import FreezingLevelCard from '@/components/FreezingLevelCard';
 import BaseDepthCard from '@/components/BaseDepthCard';
+import RecentSnowCard from '@/components/RecentSnowCard';
 import WindAspectCard from '@/components/WindAspectCard';
 import TodaySummary from '@/components/TodaySummary';
 
@@ -69,6 +70,9 @@ export default function WeatherDashboard({
             <SnowAccumulationCard
               snow24h={weatherData.snow24h}
               snow7day={weatherData.snow7day}
+              range24h={weatherData.snowRange24h}
+              range7day={weatherData.snowRange7day}
+              available={weatherData.snowForecastAvailable}
             />
             <WindGustsCard
               currentWindSpeed={weatherData.currentWindSpeed}
@@ -98,13 +102,17 @@ export default function WeatherDashboard({
             />
           </div>
 
-          {/* Mountain intelligence — snow line, base depth, wind loading.
-              Each card hides itself when its provider does not supply the
-              underlying field, so the row collapses gracefully on NWS. */}
-          <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
+          {/* Mountain intelligence — snow line, what already fell, base depth,
+              wind loading. Each card hides itself when its provider does not
+              supply the underlying field, so the row collapses gracefully. */}
+          <div className="grid grid-cols-1 gap-4 sm:gap-6 sm:grid-cols-2 xl:grid-cols-4">
             <FreezingLevelCard
               freezingLevelFt={weatherData.freezingLevelFt}
               resort={selectedResort}
+            />
+            <RecentSnowCard
+              observedSnow24h={weatherData.observedSnow24h}
+              observedSnow48h={weatherData.observedSnow48h}
             />
             <BaseDepthCard snowDepthIn={weatherData.snowDepthIn} />
             <WindAspectCard

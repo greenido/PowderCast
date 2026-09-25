@@ -42,7 +42,12 @@ export default function TodaySummary({ weather, resort, elevation }: TodaySummar
     {
       label: 'New snow 24h',
       value: formatSnow(weather.snow24h, units),
-      detail: `${formatSnow(weather.snow7day, units)} over 7 days`,
+      // What already fell outranks the 7-day total here: it is the one number
+      // on this tile that has actually happened, and it is still on the hill.
+      detail:
+        weather.observedSnow48h !== null && weather.observedSnow48h >= 1
+          ? `${formatSnow(weather.observedSnow48h, units)} fell in the last 48h`
+          : `${formatSnow(weather.snow7day, units)} over 7 days`,
       tone: weather.powderAlert ? 'text-cyan-300' : undefined,
     },
     {

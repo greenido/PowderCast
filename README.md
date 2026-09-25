@@ -79,8 +79,14 @@ don't talk about it.)
 - **Snow line**: where the freezing level sits between base and summit. If it's
   in the middle, the top gets powder and the bottom gets a car wash. This is
   the most important number in the Alps and the maritime US ranges.
+- **Already fell**: observed snowfall over the past 48 hours. Everything else
+  on the page is a forecast; this is the only number that has already happened,
+  and a foot that landed yesterday is still on the mountain this morning.
 - **Snow forecast**: 24h and 7-day totals with hourly detail, plus a 🚨
   **Powder Alert** at 6"+
+- **Model agreement**: two models run on every point, so a total reads as
+  `8-14"` when they disagree and as one number when they don't. A single figure
+  implies a precision nobody has.
 - **Base depth**: settled snow already on the ground
 - **Wind & aspect**: which slopes are wind-loaded (deep) and which are scoured
   (firm enough to hear coming)
@@ -128,6 +134,28 @@ doesn't tell your friends where you live.
 The provider is picked automatically from the coordinates. Open-Meteo steps in
 if NWS is having a day. Neither needs an API key.
 
+Every Open-Meteo request asks for the **global model alongside the regional
+one** and merges them hour by hour, because none of the high-resolution models
+is complete. Measured against live responses:
+
+| Model | What it doesn't publish |
+|---|---|
+| AROME HD | no snowfall, snow depth, freezing level or visibility at all; temperature and wind stop at ~52h |
+| ICON-D2 | every field stops at ~49h |
+| JMA Seamless | no snow depth, freezing level, wind gusts or precipitation probability |
+| MET Norway | no freezing level |
+
+Asking for the regional model alone left the French Alps and the Pyrenees with
+no snow forecast and no snow line — the most important number in the range —
+and fabricated days 3-7 of the Alpine planner. It failed silently, too:
+`sumOver()` drops nulls before reducing, so 168 missing hours summed to a
+confident `0"` mid-storm. Coverage now travels with every forecast so the
+display layer can tell *missing* from *zero*, and says "—" rather than guessing.
+
+NWS publishes neither snow depth nor history, so both are grafted on from
+Open-Meteo into the same hourly grid — one grid, one code path, no chance of the
+same number disagreeing with itself across views.
+
 Resort data comes from [OpenSkiMap](https://openskimap.org), an open dataset
 built from OpenStreetMap that includes real piste elevations.
 
@@ -160,13 +188,14 @@ hooks/
 lib/
   providers/             WeatherProvider implementations + routing
     nws.ts               US National Weather Service
-    openMeteo.ts         Global, with regional high-res model selection
+    openMeteo.ts         Global, regional high-res model + global model merge
+    supplement.ts        Snow depth and history for providers without them
   types.ts               Resort + the normalized SI forecast model
   conditions.ts          Normalized SI → rider-facing display model
   scoring.ts             The one and only Ride Score
-  series.ts              Window reductions over the hourly series
+  series.ts              Window reductions, backward windows and coverage
   planner.ts             Multi-day outlook
-  lapseRate.ts           Elevation correction for providers that need it
+  lapseRate.ts           Elevation correction, incl. snow phase and density
   nearby.ts              Great-circle distance ranking
   urlState.ts            URL parse/serialize
   units.ts               Unit-system-aware formatting
@@ -201,6 +230,14 @@ What actually separates them is **elevation**. Open-Meteo accepts an
 `elevation` parameter and downscales properly. NWS can't, so PowderCast applies
 a lapse-rate correction and labels that view as modelled.
 
+That correction now covers **snowfall**, not just temperature and wind. NWS
+publishes `quantitativePrecipitation` — the liquid equivalent — so the two cases
+that actually decide a day can be answered: rain at the base arriving as snow at
+the summit, and the reverse, the three-hour drive to ride a Slurpee. Where the
+model already forecasts snow its own number is kept and only rescaled for
+density; the snow-to-liquid ratio is used to build an amount from scratch only
+when the model said rain at its own elevation.
+
 ## 🎫 Ski passes
 
 `data/passes.json` holds the Ikon, Epic and Mountain Collective rosters with
@@ -226,6 +263,7 @@ Midwest Epic hills are), its upstream name changed, or it left the pass.
 | `yarn build` | Static export to `./out` |
 | `yarn lint` | ESLint |
 | `yarn test` | Unit tests (no network) |
+| `yarn test:merge` | Model merging, coverage, snow phase and the graft |
 | `yarn test:providers` | Live provider contract tests (hits the network) |
 | `yarn build:resorts` | Regenerate `public/resorts.json` from OpenSkiMap |
 | `yarn build:resorts --refresh` | Re-download the source dataset first |
@@ -235,14 +273,15 @@ Midwest Epic hills are), its upstream name changed, or it left the pass.
 ## 🧪 Testing
 
 ```bash
-yarn test              # 126 assertions across 7 suites, no network, ~15s
+yarn test              # 157 assertions across 8 suites, no network, ~12s
 yarn test:providers    # live contract tests against NWS + Open-Meteo
 ```
 
 The unit suite runs on synthetic data and a captured NWS gridpoint fixture
 (`tests/fixtures/nws-gridpoint-REV-28-94.json`). It covers NWS processing,
-scoring, units and the planner, elevation, the resort schema, URL state and
-nearby ranking.
+scoring, units and the planner, elevation, the resort schema, URL state,
+nearby ranking, and model merging — coverage, backward windows, snow phase
+across elevation, model spread and the snow-depth graft.
 
 **Every case corresponds to a bug that actually shipped.** If a test fails,
 add a case rather than loosening the existing one.

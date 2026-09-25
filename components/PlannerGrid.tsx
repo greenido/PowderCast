@@ -163,6 +163,21 @@ function DayCell({
   isBest: boolean;
   units: 'metric' | 'imperial';
 }) {
+  // No forecast for this day: say so. A score built from absent data reads as
+  // a real one, and "Fair" is a worse answer than "don't know".
+  if (!day.hasData) {
+    return (
+      <td className="p-1">
+        <div
+          className="rounded-lg border border-dashed border-white/10 px-2 py-2.5 text-center"
+          title="No forecast published for this day"
+        >
+          <div className="text-sm font-bold tabular-nums text-gray-600">–</div>
+        </div>
+      </td>
+    );
+  }
+
   const tone = scoreTone(day.score);
 
   return (

@@ -21,7 +21,16 @@ import {
   hasWindHoldRisk,
 } from '@/lib/snowLogic';
 import type { SnowQuality } from '@/lib/snowLogic';
-import { sumOver, maxOver, minOver, avgOver, valueAt, snowWeightedTempC } from '@/lib/series';
+import {
+  sumOver,
+  sumOverOrNull,
+  sumBack,
+  maxOver,
+  minOver,
+  avgOver,
+  valueAt,
+  snowWeightedTempC,
+} from '@/lib/series';
 
 export interface HourlySnowData {
   time: string;
@@ -30,6 +39,27 @@ export interface HourlySnowData {
   temperature: number; // °F
   windSpeed: number; // mph
   snowQuality: SnowQuality;
+}
+
+/**
+ * How far apart the models are on a snow total.
+ *
+ * A single number implies a confidence nobody has. Two models agreeing on 10in
+ * is a different decision from one saying 4in and another 16in, and the second
+ * case is exactly when someone is weighing a three-hour drive.
+ */
+export interface SnowRange {
+  lowIn: number;
+  highIn: number;
+  /** How many models contributed a figure. */
+  models: number;
+  /**
+   * True when the spread is tight enough that showing one number is honest.
+   * Within an inch, or within 30% of the mean -- forecasting 9-11in and
+   * forecasting 2-14in are not the same claim, but nor is an inch of daylight
+   * worth cluttering a card over.
+   */
+  agree: boolean;
 }
 
 /**
@@ -50,6 +80,24 @@ export interface RiderConditions {
   snow24h: number;
   snow48h: number;
   snow7day: number;
+
+  /**
+   * Snow that has ALREADY fallen, in inches. Null when no history is
+   * available, which is not the same as none having fallen.
+   */
+  observedSnow24h: number | null;
+  observedSnow48h: number | null;
+
+  /** Model spread on the forecast totals. Null when only one model answered. */
+  snowRange24h: SnowRange | null;
+  snowRange7day: SnowRange | null;
+
+  /**
+   * False when the serving models publish no snowfall at all for this point.
+   * Without it, 168 null hours summed to a confident "0 in" -- which is how the
+   * French Alps reported a dry week mid-storm.
+   */
+  snowForecastAvailable: boolean;
 
   maxWindGust24h: number;
   maxWindGust7day: number;
@@ -108,6 +156,12 @@ export function deriveConditions(
   const snow48h = mmToInches(sumOver(h.snowfallMm, t, now, 48));
   const snow7day = mmToInches(sumOver(h.snowfallMm, t, now, 168));
 
+  // What already fell. The series now reaches into the past for both providers
+  // (natively for Open-Meteo, grafted for NWS), and a foot that landed
+  // yesterday is still on the mountain this morning.
+  const observedSnow24h = inchesOrNull(sumBack(h.snowfallMm, t, now, 24));
+  const observedSnow48h = inchesOrNull(sumBack(h.snowfallMm, t, now, 48));
+
   // --- Snow quality -------------------------------------------------------
   // Weighted by snowfall so the classification reflects conditions while snow
   // is falling. Falls back to the current temp when nothing is forecast, which
@@ -143,6 +197,16 @@ export function deriveConditions(
     snow48h,
     snow7day,
 
+    observedSnow24h,
+    observedSnow48h,
+
+    snowRange24h: snowRange(forecast, now, 24),
+    snowRange7day: snowRange(forecast, now, 168),
+
+    // Absent coverage means a provider that predates the measurement, not a
+    // gap, so the optimistic default is the correct one.
+    snowForecastAvailable: (forecast.coverage?.snowfallMm ?? 1) > 0,
+
     maxWindGust24h,
     maxWindGust7day: kmhToMph(maxOver(h.windGustKmh, t, now, 168) ?? 0),
     avgWindSpeed: kmhToMph(avgOver(h.windSpeedKmh, t, now, 24) ?? 0),
@@ -171,6 +235,45 @@ export function deriveConditions(
     gridDataUrl: forecast.sourceUrl ?? '',
     forecastElevationFt:
       forecast.elevationM === null ? null : metersToFeet(forecast.elevationM),
+  };
+}
+
+function inchesOrNull(mm: number | null): number | null {
+  return mm === null ? null : mmToInches(mm);
+}
+
+/**
+ * Range of model totals over a window.
+ *
+ * Models with no data in the window are dropped rather than counted as zero:
+ * AROME HD publishes no snowfall at all, and treating its silence as "0 in"
+ * would report a 0-12in spread on a day every model that answered called a
+ * foot of snow.
+ */
+function snowRange(
+  forecast: NormalizedForecast,
+  now: number,
+  hours: number
+): SnowRange | null {
+  const ensemble = forecast.ensemble;
+  if (!ensemble || ensemble.length < 2) return null;
+
+  const totals: number[] = [];
+  for (const member of ensemble) {
+    const mm = sumOverOrNull(member.snowfallMm, forecast.hourly.time, now, hours);
+    if (mm !== null) totals.push(mmToInches(mm));
+  }
+  if (totals.length < 2) return null;
+
+  const lowIn = Math.min(...totals);
+  const highIn = Math.max(...totals);
+  const mean = totals.reduce((a, b) => a + b, 0) / totals.length;
+
+  return {
+    lowIn,
+    highIn,
+    models: totals.length,
+    agree: highIn - lowIn <= Math.max(1, mean * 0.3),
   };
 }
 
