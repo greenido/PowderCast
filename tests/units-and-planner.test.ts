@@ -12,6 +12,8 @@ import {
   formatElevation,
   formatVisibility,
   defaultUnitsForCountry,
+  tempDelta,
+  tempValue,
 } from '../lib/units';
 import { snowLabel, detectFirnWindow } from '../lib/snowVocabulary';
 import { buildOutlook, rankOutlooks, scoreTone } from '../lib/planner';
@@ -41,6 +43,31 @@ test('temperature converts to Celsius for metric', () => {
   assert.equal(formatTemp(32, 'metric'), '0°C');
   assert.equal(formatTemp(32, 'imperial'), '32°F');
   assert.equal(formatTemp(14, 'metric'), '-10°C');
+});
+
+test('a temperature delta scales without the freezing-point shift', () => {
+  // The bug this guards: a 13°F range run through the absolute F->C conversion
+  // gives -10°C, which looks like a real reading. It is 7°C of spread.
+  assert.equal(tempDelta(13, 'metric'), 7);
+  assert.equal(tempDelta(13, 'imperial'), 13);
+
+  // A delta of zero stays zero in both systems; the absolute conversion
+  // would turn it into -18°C.
+  assert.equal(tempDelta(0, 'metric'), 0);
+  assert.equal(tempDelta(0, 'imperial'), 0);
+
+  // 18°F is exactly 10°C of spread.
+  assert.equal(tempDelta(18, 'metric'), 10);
+});
+
+test('the 24h range and its endpoints stay consistent in metric', () => {
+  // The card renders high, low and range from the same three numbers, so the
+  // displayed range must equal the displayed span. 34°F/21°F -> 1°C/-6°C.
+  const highF = 34;
+  const lowF = 21;
+  assert.equal(tempValue(highF, 'metric'), 1);
+  assert.equal(tempValue(lowF, 'metric'), -6);
+  assert.equal(tempDelta(highF - lowF, 'metric'), 7);
 });
 
 test('snowfall converts inches to centimetres', () => {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useUnits } from '@/hooks/useUnits';
-import { formatTemp } from '@/lib/units';
+import { formatTemp, tempDelta, tempUnit, tempValue } from '@/lib/units';
 
 import { ArrowTrendingUpIcon, ArrowTrendingDownIcon } from '@heroicons/react/24/solid';
 
@@ -43,14 +43,14 @@ export default function TempRangeCard({
             <div>
               <div className="flex items-baseline gap-2">
                 <div className="text-2xl sm:text-3xl font-bold text-orange-400">
-                  {Math.round(maxTemp24h)}°
+                  {tempValue(maxTemp24h, units)}°
                 </div>
                 <div className="text-base sm:text-lg text-gray-400">
-                  / {Math.round(minTemp24h)}°
+                  / {tempValue(minTemp24h, units)}°
                 </div>
               </div>
               <div className="text-xs sm:text-sm text-gray-400 mt-1">
-                High / Low (Range: {Math.round(tempRange)}°)
+                High / Low {tempUnit(units)} (Range: {tempDelta(tempRange, units)}°)
               </div>
             </div>
             

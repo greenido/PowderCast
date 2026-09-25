@@ -1,7 +1,7 @@
 'use client';
 
 import { useUnits } from '@/hooks/useUnits';
-import { formatTemp } from '@/lib/units';
+import { formatTemp, tempDelta } from '@/lib/units';
 
 import { BeakerIcon } from '@heroicons/react/24/solid';
 
@@ -19,7 +19,8 @@ export default function HumidityCard({ humidity, dewpoint, temperature }: Humidi
     humidityLevel === 'moderate' ? 'text-cyan-400' :
     'text-gray-400';
 
-  // Calculate dew point spread (temp - dewpoint) - important for snow quality
+  // Calculate dew point spread (temp - dewpoint) - important for snow quality.
+  // Kept in °F because the thresholds below are °F; only the display converts.
   const dewpointSpread = temperature - dewpoint;
   const spreadInfo = 
     dewpointSpread < 5 ? 'Very humid, potential fog' :
@@ -60,7 +61,7 @@ export default function HumidityCard({ humidity, dewpoint, temperature }: Humidi
           </div>
 
           <div className="mt-3 sm:mt-4 text-xs sm:text-sm text-gray-300">
-            <span className="text-cyan-400 font-semibold">Δ{Math.round(dewpointSpread)}°</span> spread • {spreadInfo}
+            <span className="text-cyan-400 font-semibold">Δ{tempDelta(dewpointSpread, units)}°</span> spread • {spreadInfo}
           </div>
         </div>
       </div>

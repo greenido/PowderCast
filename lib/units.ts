@@ -44,6 +44,18 @@ export function tempUnit(units: UnitSystem): string {
 }
 
 /**
+ * A temperature *difference*, not a temperature.
+ *
+ * Deltas scale but do not shift: 13°F of spread is 7°C of spread, not the
+ * -10°C that the absolute F->C conversion would produce. Reaching for
+ * formatTemp or tempValue here silently turns every range and dewpoint spread
+ * into a plausible-looking wrong number, so a delta gets its own function.
+ */
+export function tempDelta(deltaF: number, units: UnitSystem): number {
+  return Math.round(units === 'metric' ? (deltaF * 5) / 9 : deltaF);
+}
+
+/**
  * Snowfall. Metric riders talk in centimetres, and the difference between
  * 2cm and 20cm is the difference between a normal Tuesday and a powder day —
  * so keep a decimal below 10cm rather than rounding it away.
