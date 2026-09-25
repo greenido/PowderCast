@@ -180,7 +180,7 @@ app/                     Next.js App Router (static export)
 components/              UI: cards, views, map, planner grid
 hooks/
   useForecast.ts         Single + multi-resort fetching, caching, fallback
-  usePlanner.ts          Resort × day outlook grid
+  usePlanner.ts          Resort × day outlook grid (shares the same cache)
   useGeolocation.tsx     "Near me", held in memory only
   useUrlState.ts         View state ⇄ URL
   useUnits.tsx           Metric/imperial preference
@@ -197,6 +197,7 @@ lib/
   planner.ts             Multi-day outlook
   lapseRate.ts           Elevation correction, incl. snow phase and density
   nearby.ts              Great-circle distance ranking
+  forecastCache.ts       One TTL + LRU cache behind every view
   urlState.ts            URL parse/serialize
   units.ts               Unit-system-aware formatting
   snowVocabulary.ts      Region-specific snow terminology
@@ -218,6 +219,25 @@ centimetre conversion, overstated every snow total by 10×, and fired Powder
 Alerts on 0.6" of snow. Some people probably drove to a mountain over that.
 Normalizing once, inside the provider, keeps that class of bug out of the
 components.
+
+### 🗄️ One cache, forecasts only
+
+Every view reads the same cache (`lib/forecastCache.ts`), keyed by resort and
+elevation — `base`, `summit`, or the `mid` the planner reasons about. It stores
+the **normalized forecast only**; conditions and day outlooks are derived on
+read.
+
+That is both smaller and more correct. `deriveConditions()` and `buildOutlook()`
+anchor every window to `now`, so a stored conditions blob meant a 55-minute-old
+entry showed a "next 24 hours" that started 55 minutes ago, and a day grid still
+labelled with the day it was built on.
+
+The cache has a TTL, a hard entry cap with oldest-first eviction, and a
+quota-exceeded path that evicts and retries. Before, nothing ever removed an
+entry: no expiry sweep, no eviction, and each schema bump orphaned the previous
+version's entries forever. Entries ran 20-44KB, so a few regions of browsing
+filled the quota — after which every write threw into an empty catch and caching
+stopped working everywhere, silently and permanently.
 
 ### 🏔️ Elevation
 
@@ -264,6 +284,7 @@ Midwest Epic hills are), its upstream name changed, or it left the pass.
 | `yarn lint` | ESLint |
 | `yarn test` | Unit tests (no network) |
 | `yarn test:merge` | Model merging, coverage, snow phase and the graft |
+| `yarn test:cache` | Forecast cache eviction and fetch cancellation |
 | `yarn test:providers` | Live provider contract tests (hits the network) |
 | `yarn build:resorts` | Regenerate `public/resorts.json` from OpenSkiMap |
 | `yarn build:resorts --refresh` | Re-download the source dataset first |
@@ -273,15 +294,16 @@ Midwest Epic hills are), its upstream name changed, or it left the pass.
 ## 🧪 Testing
 
 ```bash
-yarn test              # 157 assertions across 8 suites, no network, ~12s
+yarn test              # 176 assertions across 9 suites, no network, ~14s
 yarn test:providers    # live contract tests against NWS + Open-Meteo
 ```
 
 The unit suite runs on synthetic data and a captured NWS gridpoint fixture
 (`tests/fixtures/nws-gridpoint-REV-28-94.json`). It covers NWS processing,
 scoring, units and the planner, elevation, the resort schema, URL state,
-nearby ranking, and model merging — coverage, backward windows, snow phase
-across elevation, model spread and the snow-depth graft.
+nearby ranking, model merging — coverage, backward windows, snow phase across
+elevation, model spread and the snow-depth graft — and the fetch and cache
+layer: eviction, quota recovery and request cancellation.
 
 **Every case corresponds to a bug that actually shipped.** If a test fails,
 add a case rather than loosening the existing one.

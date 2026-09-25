@@ -7,53 +7,18 @@ import type { NormalizedForecast } from '@/lib/types';
 import { deriveConditions } from '@/lib/conditions';
 import { fetchForecast } from '@/lib/providers';
 import { resortPoint } from '@/lib/resortGeo';
+import {
+  forecastKey,
+  readForecast,
+  writeForecast,
+  clearLegacyEntries,
+} from '@/lib/forecastCache';
 
 export type Elevation = 'base' | 'summit';
 
-const CACHE_TTL_MS = 3_600_000; // 1 hour
-// v3 stores the normalized forecast alongside the derived conditions so Pro
-// View can render raw series without a second fetch. The bump also discards
-// every v2 entry, which held conditions only.
-const CACHE_PREFIX = 'pc_forecast_v3';
-
-interface CacheEntry {
-  conditions: RiderConditions;
-  forecast: NormalizedForecast;
-  timestamp: number;
-}
-
-/**
- * Cache key includes elevation and provider version. The v2 prefix also
- * invalidates every entry written before the unit fixes, so nobody is served
- * a stale 10x snow total from localStorage.
- */
-function cacheKey(resortId: string, elevation: Elevation): string {
-  return `${CACHE_PREFIX}_${resortId}_${elevation}`;
-}
-
-function readCache(key: string, maxAgeMs = CACHE_TTL_MS): CacheEntry | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const entry = JSON.parse(raw) as Partial<CacheEntry>;
-    if (!entry?.conditions || !entry.timestamp) return null;
-    if (Date.now() - entry.timestamp > maxAgeMs) return null;
-    return entry as CacheEntry;
-  } catch {
-    return null;
-  }
-}
-
-function writeCache(key: string, entry: CacheEntry) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(key, JSON.stringify(entry));
-  } catch {
-    // Quota exceeded or private mode — caching is best-effort. A large region
-    // of 7-day hourly series can approach the limit; losing the cache only
-    // costs a refetch.
-  }
+/** True when a rejection is this hook cancelling its own request. */
+function isAbort(err: unknown): boolean {
+  return err instanceof DOMException && err.name === 'AbortError';
 }
 
 /**
@@ -61,6 +26,11 @@ function writeCache(key: string, entry: CacheEntry) {
  *
  * Paints cached data immediately, then revalidates. On failure, falls back to
  * cache of any age so an offline rider still sees the last known conditions.
+ *
+ * Conditions are derived from the cached forecast on every read rather than
+ * cached alongside it: every window in deriveConditions() is anchored to `now`,
+ * so a stored conditions blob showed a "next 24 hours" that started whenever it
+ * happened to be written.
  */
 export function useForecast(resort: Resort | null, elevation: Elevation = 'base') {
   const [conditions, setConditions] = useState<RiderConditions | null>(null);
@@ -69,6 +39,9 @@ export function useForecast(resort: Resort | null, elevation: Elevation = 'base'
   const [error, setError] = useState<string | null>(null);
   const [lastFetchTime, setLastFetchTime] = useState<number | null>(null);
   const requestId = useRef(0);
+  const inFlight = useRef<AbortController | null>(null);
+
+  useEffect(() => clearLegacyEntries(), []);
 
   const load = useCallback(async () => {
     if (!resort) {
@@ -76,40 +49,46 @@ export function useForecast(resort: Resort | null, elevation: Elevation = 'base'
       return;
     }
 
+    // Stop whatever the previous resort was still doing. The request-id guard
+    // below keeps stale results off the screen, but only an abort keeps them
+    // off the network — for NWS that is three calls nobody is waiting for.
+    inFlight.current?.abort();
+    const controller = new AbortController();
+    inFlight.current = controller;
+
     const id = ++requestId.current;
-    const key = cacheKey(resort.id, elevation);
+    const key = forecastKey(resort.id, elevation);
     const point = resortPoint(resort, elevation);
 
     setLoading(true);
     setError(null);
 
     try {
-      const forecast = await fetchForecast({
+      const fresh = await fetchForecast({
         lat: point.lat,
         lon: point.lon,
         elevationM: point.elevationM,
         timezone: resort.timezone,
+        signal: controller.signal,
       });
 
       if (id !== requestId.current) return; // Superseded by a newer request.
 
-      const derived = deriveConditions(forecast);
       const now = Date.now();
-
-      setConditions(derived);
-      setForecast(forecast);
+      setConditions(deriveConditions(fresh, now));
+      setForecast(fresh);
       setLastFetchTime(now);
-      writeCache(key, { conditions: derived, forecast, timestamp: now });
+      writeForecast(key, fresh, now);
     } catch (err) {
-      if (id !== requestId.current) return;
+      if (id !== requestId.current || isAbort(err)) return;
 
       console.error('[useForecast] failed:', err);
 
       // Any-age cache beats an error screen on a chairlift with one bar.
-      const stale = readCache(key, Infinity);
+      const stale = readForecast(key, Infinity);
       if (stale) {
-        setConditions(stale.conditions);
-        setForecast(stale.forecast ?? null);
+        setConditions(deriveConditions(stale.forecast));
+        setForecast(stale.forecast);
         setLastFetchTime(stale.timestamp);
         setError('Showing saved data — could not reach the forecast service');
       } else {
@@ -128,10 +107,10 @@ export function useForecast(resort: Resort | null, elevation: Elevation = 'base'
       return;
     }
 
-    const cached = readCache(cacheKey(resort.id, elevation));
+    const cached = readForecast(forecastKey(resort.id, elevation));
     if (cached) {
-      setConditions(cached.conditions);
-      setForecast(cached.forecast ?? null);
+      setConditions(deriveConditions(cached.forecast));
+      setForecast(cached.forecast);
       setLastFetchTime(cached.timestamp);
     } else {
       setConditions(null);
@@ -140,6 +119,9 @@ export function useForecast(resort: Resort | null, elevation: Elevation = 'base'
 
     load();
   }, [resort, elevation, load]);
+
+  // Leaving the page should not leave requests running.
+  useEffect(() => () => inFlight.current?.abort(), []);
 
   return { conditions, forecast, loading, error, refresh: load, lastFetchTime };
 }
@@ -152,7 +134,7 @@ export interface MultiForecastState {
 }
 
 /**
- * Fetch conditions for many resorts, for the comparison and planner views.
+ * Fetch conditions for many resorts, for the comparison view.
  *
  * Requests run through a small concurrency pool rather than all at once.
  * A region can hold 30+ resorts, and each one is two upstream calls for NWS;
@@ -167,6 +149,7 @@ export function useMultiForecast(
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const requestId = useRef(0);
+  const inFlight = useRef<AbortController | null>(null);
 
   // Depend on identity, not array reference, so a re-render with an equivalent
   // list doesn't retrigger a full refetch.
@@ -180,6 +163,11 @@ export function useMultiForecast(
         return;
       }
 
+      // Changing region mid-load abandons a dozen resorts' worth of requests.
+      inFlight.current?.abort();
+      const controller = new AbortController();
+      inFlight.current = controller;
+
       const id = ++requestId.current;
       setLoading(true);
 
@@ -187,8 +175,8 @@ export function useMultiForecast(
       const pending: Resort[] = [];
 
       for (const resort of resorts) {
-        const hit = force ? null : readCache(cacheKey(resort.id, elevation));
-        if (hit) cached[resort.id] = hit.conditions;
+        const hit = force ? null : readForecast(forecastKey(resort.id, elevation));
+        if (hit) cached[resort.id] = deriveConditions(hit.forecast);
         else pending.push(resort);
       }
 
@@ -197,6 +185,7 @@ export function useMultiForecast(
       }
 
       if (pending.length === 0) {
+        setErrors({});
         setLoading(false);
         return;
       }
@@ -207,6 +196,8 @@ export function useMultiForecast(
       let cursor = 0;
       async function worker() {
         while (cursor < pending.length) {
+          if (controller.signal.aborted) return;
+
           const resort = pending[cursor++];
           const point = resortPoint(resort, elevation);
 
@@ -216,18 +207,17 @@ export function useMultiForecast(
               lon: point.lon,
               elevationM: point.elevationM,
               timezone: resort.timezone,
+              signal: controller.signal,
             });
-            const derived = deriveConditions(forecast);
-            results[resort.id] = derived;
-            writeCache(cacheKey(resort.id, elevation), {
-              conditions: derived,
-              forecast,
-              timestamp: Date.now(),
-            });
+            const now = Date.now();
+            results[resort.id] = deriveConditions(forecast, now);
+            writeForecast(forecastKey(resort.id, elevation), forecast, now);
           } catch (err) {
-            const stale = readCache(cacheKey(resort.id, elevation), Infinity);
+            if (isAbort(err)) return;
+
+            const stale = readForecast(forecastKey(resort.id, elevation), Infinity);
             if (stale) {
-              results[resort.id] = stale.conditions;
+              results[resort.id] = deriveConditions(stale.forecast);
             } else {
               failures[resort.id] =
                 err instanceof Error ? err.message : 'Failed to load';
@@ -240,7 +230,7 @@ export function useMultiForecast(
         Array.from({ length: Math.min(concurrency, pending.length) }, worker)
       );
 
-      if (id !== requestId.current) return;
+      if (id !== requestId.current || controller.signal.aborted) return;
 
       setData(results);
       setErrors(failures);
@@ -253,6 +243,8 @@ export function useMultiForecast(
   useEffect(() => {
     load(false);
   }, [load]);
+
+  useEffect(() => () => inFlight.current?.abort(), []);
 
   return { data, errors, loading, refresh: () => load(true) };
 }
