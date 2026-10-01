@@ -46,3 +46,32 @@ export function resortsInRegion(
     .sort((a, b) => (b.runsKm ?? 0) - (a.runsKm ?? 0))
     .slice(0, limit);
 }
+
+/** Time zones whose riders most likely ski nearest a given region. */
+const TIMEZONE_REGIONS: Array<[RegExp, RegionCode]> = [
+  [/^America\/(Los_Angeles|Vancouver|Anchorage|Juneau)$|^Pacific\/Honolulu$/, 'us-west'],
+  [/^America\/(Denver|Phoenix|Boise|Edmonton|Calgary)$/, 'us-rockies'],
+  [/^America\/(New_York|Chicago|Detroit|Toronto|Montreal|Indiana\/.+|Kentucky\/.+)$/, 'us-east'],
+  [/^Europe\/(Rome|Vatican|San_Marino)$/, 'dolomites'],
+  [/^Europe\/(Madrid|Andorra)$/, 'pyrenees'],
+  [/^Europe\/(Oslo|Stockholm|Helsinki|Copenhagen)$/, 'scandinavia'],
+  [/^Europe\//, 'alps'],
+  [/^Asia\/Tokyo$/, 'japan'],
+];
+
+/**
+ * A best guess at the rider's home range, from the browser's time zone.
+ *
+ * Used where the app suggests mountains before it knows anything else about
+ * the rider. It asks for no permission and leaves nothing in the URL, unlike
+ * geolocation. Falls back to the first available region when the guess has
+ * no resorts (say, after a pass filter) or the zone is unknown.
+ */
+export function regionForTimezone(
+  timezone: string | undefined,
+  available: RegionCode[]
+): RegionCode | null {
+  const guess = TIMEZONE_REGIONS.find(([pattern]) => pattern.test(timezone ?? ''))?.[1];
+  if (guess && available.includes(guess)) return guess;
+  return available[0] ?? null;
+}
