@@ -16,7 +16,7 @@ import {
   tempValue,
 } from '../lib/units';
 import { snowLabel, detectFirnWindow } from '../lib/snowVocabulary';
-import { buildOutlook, rankOutlooks, scoreTone } from '../lib/planner';
+import { bestPerDay, buildOutlook, rankOutlooks, scoreTone } from '../lib/planner';
 import { degreesToCompass, windLoadedAspects, haversineMeters } from '../lib/resortGeo';
 import type { NormalizedForecast, Resort } from '../lib/types';
 import { emptyHourlySeries } from '../lib/types';
@@ -355,6 +355,52 @@ test('ranking puts the best outlook first', () => {
   );
 
   assert.equal(rankOutlooks([bad, good])[0].resort.id, 'good');
+});
+
+test('the best pick per day goes to the best mountain that day', () => {
+  // "early" gets its snow on day 1, "late" on day 3.
+  const snowOn = (id: string, from: number) =>
+    buildOutlook(
+      { ...testResort, id },
+      syntheticForecast((i) => ({
+        snowMm: i >= from && i < from + 24 ? 20 : 0,
+        tempC: -12,
+        gustKmh: 10,
+        cloud: 60,
+      })),
+      START,
+      7
+    );
+  const early = snowOn('early', 0);
+  const late = snowOn('late', 48);
+
+  const picks = bestPerDay([early, late]);
+  assert.equal(picks.length, early.days.length);
+  assert.equal(picks[0].resort.id, 'early');
+  assert.equal(picks[2].resort.id, 'late');
+  assert.deepEqual(
+    picks.map((p) => p.day.dayKey),
+    early.days.map((d) => d.dayKey),
+    'one pick per column, in order'
+  );
+});
+
+test('a day with no data anywhere gets no pick', () => {
+  const outlook = buildOutlook(
+    testResort,
+    syntheticForecast(() => ({ snowMm: 0, tempC: -5, gustKmh: 10, cloud: 50 })),
+    START,
+    7
+  );
+  const blanked = {
+    ...outlook,
+    days: outlook.days.map((d, i) => (i === 1 ? { ...d, hasData: false } : d)),
+  };
+
+  const picks = bestPerDay([blanked]);
+  assert.equal(picks.length, outlook.days.length - 1);
+  assert.ok(!picks.some((p) => p.day.dayKey === outlook.days[1].dayKey));
+  assert.deepEqual(bestPerDay([]), []);
 });
 
 test('score tones are ordered and complete', () => {

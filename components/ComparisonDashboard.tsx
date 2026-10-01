@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import type { Resort } from '@/lib/types';
 import type { LatLon } from '@/lib/nearby';
+import type { RiderConditions } from '@/lib/conditions';
 import { useMultiForecast } from '@/hooks/useForecast';
 import { calculateRideScore, getRideScoreLabel } from '@/lib/rideScore';
 import { snowLabel } from '@/lib/snowVocabulary';
@@ -119,7 +120,7 @@ export default function ComparisonDashboard({
               {title} ({resorts.length})
             </span>
           </h2>
-          <p className="text-xs sm:text-sm text-gray-400 mt-1">
+          <p className="hidden text-xs sm:block sm:text-sm text-gray-400 mt-1">
             Compare ski resort weather conditions and powder depth at a glance.
           </p>
         </div>
@@ -135,7 +136,8 @@ export default function ComparisonDashboard({
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              🏆 Ride Score
+              <span className="hidden sm:inline">🏆 Ride Score</span>
+              <span className="sm:hidden">Score</span>
             </button>
             <button
               onClick={() => setSortBy('snowfall')}
@@ -145,7 +147,8 @@ export default function ComparisonDashboard({
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              🌨️ 24h Snow
+              <span className="hidden sm:inline">🌨️ 24h Snow</span>
+              <span className="sm:hidden">Snow</span>
             </button>
             <button
               onClick={() => setSortBy('name')}
@@ -155,13 +158,15 @@ export default function ComparisonDashboard({
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              🔤 Name
+              <span className="hidden sm:inline">🔤 Name</span>
+              <span className="sm:hidden">Name</span>
             </button>
           </div>
 
           <button
             onClick={() => setShowMap(!showMap)}
             aria-pressed={showMap}
+            aria-label="Map"
             className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2.5 text-xs font-semibold transition-all sm:text-sm ${
               showMap
                 ? 'border-cyan-400/30 bg-cyan-500/20 text-cyan-300'
@@ -169,7 +174,7 @@ export default function ComparisonDashboard({
             }`}
           >
             <MapIcon className="h-4 w-4" />
-            Map
+            <span className="hidden sm:inline">Map</span>
           </button>
 
           {/* Refresh Button */}
@@ -188,8 +193,16 @@ export default function ComparisonDashboard({
         <ResortMap points={mapPoints} origin={origin} onSelectResort={onSelectResort} />
       )}
 
-      {/* Resorts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <CompactList
+        rows={sortedResorts}
+        loading={loading}
+        onSelectResort={onSelectResort}
+        distances={distances}
+        units={units}
+      />
+
+      {/* Resorts Grid — from `sm` up. A phone gets the compact list above. */}
+      <div className="hidden sm:grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {sortedResorts.map(({ resort, weather, score, scoreBreakdown, error }) => {
           const isResortLoading = loading && !weather && !error;
 
@@ -387,5 +400,110 @@ export default function ComparisonDashboard({
         })}
       </div>
     </div>
+  );
+}
+
+interface CompactRow {
+  resort: Resort;
+  weather: RiderConditions | null;
+  score: number;
+  error: string | null | undefined;
+}
+
+/**
+ * One line per resort, for phones.
+ *
+ * The cards are a screen tall each on a phone, so a region of twelve took
+ * twelve screens and the ranking (the point of the view) was invisible. Here
+ * the whole ranking fits on about one screen; a tap opens the full forecast.
+ */
+function CompactList({
+  rows,
+  loading,
+  onSelectResort,
+  distances,
+  units,
+}: {
+  rows: CompactRow[];
+  loading: boolean;
+  onSelectResort: (resort: Resort) => void;
+  distances?: Record<string, number>;
+  units: 'metric' | 'imperial';
+}) {
+  return (
+    <ol className="glass-card divide-y divide-white/5 p-0 sm:hidden" aria-label="Resorts, ranked">
+      {rows.map(({ resort, weather, score, error }, index) => {
+        const subtitle =
+          distances?.[resort.id] !== undefined
+            ? `${formatDistance(distances[resort.id], units)} away`
+            : resort.region;
+
+        if (!weather) {
+          return (
+            <li key={resort.id}>
+              <button
+                onClick={() => onSelectResort(resort)}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left"
+              >
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-semibold text-white">
+                    {resort.name}
+                  </span>
+                  <span className={`block text-xs ${error ? 'text-red-400' : 'text-gray-500'}`}>
+                    {error ? 'Could not load the forecast' : loading ? 'Loading…' : subtitle}
+                  </span>
+                </span>
+                {!error && loading && (
+                  <span className="h-7 w-10 shrink-0 animate-pulse rounded-md bg-white/10" />
+                )}
+              </button>
+            </li>
+          );
+        }
+
+        const label = getRideScoreLabel(score);
+        const flags = [
+          weather.powderAlert && '❄️',
+          weather.bluebirdDay && '☀️',
+          weather.windHoldRisk && '💨',
+        ].filter(Boolean);
+
+        return (
+          <li key={resort.id}>
+            <button
+              onClick={() => onSelectResort(resort)}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-white/5"
+            >
+              <span className="w-4 shrink-0 text-xs font-semibold tabular-nums text-gray-500">
+                {index + 1}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-white">
+                  {resort.name}
+                </span>
+                <span className="block truncate text-xs text-gray-400">
+                  {subtitle} · {formatTemp(weather.currentTemp, units)}
+                  {flags.length > 0 && ` · ${flags.join(' ')}`}
+                </span>
+              </span>
+              <span
+                className={`shrink-0 text-right text-sm font-semibold tabular-nums ${
+                  weather.snow24h > 0 ? 'text-cyan-300' : 'text-gray-500'
+                }`}
+                title="Snow in the next 24 hours"
+              >
+                {formatSnow(weather.snow24h, units)}
+              </span>
+              <span
+                className={`w-10 shrink-0 rounded-md border py-1 text-center text-sm font-bold tabular-nums ${label.bgColor} ${label.color} ${label.borderColor}`}
+                title={label.label}
+              >
+                {score}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
   );
 }

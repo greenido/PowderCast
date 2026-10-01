@@ -95,14 +95,15 @@ function HomeContent() {
         ? 'Near you'
         : REGION_LABELS[comparisonRegion];
 
+  // A single swipeable row on a phone, wrapped and centred from `sm` up.
   const regionChips = (
-    <div className="flex flex-wrap justify-center gap-2">
+    <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
       {[{ code: 'Nearby' as const, emoji: '📍', label: 'Nearby' }, ...regions].map((region) => (
         <button
           key={region.code}
           onClick={() => url.update({ region: region.code }, 'replace')}
           aria-pressed={comparisonRegion === region.code}
-          className={`px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
+          className={`shrink-0 px-4 py-2 rounded-full text-xs font-semibold border transition-all ${
             comparisonRegion === region.code
               ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400/30 font-bold'
               : 'bg-white/5 text-gray-400 border-white/10 hover:bg-white/10 hover:text-white'
