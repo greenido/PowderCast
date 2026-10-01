@@ -97,7 +97,9 @@ export default function TodaySummary({ weather, resort, elevation }: TodaySummar
         </div>
       </div>
 
-      <dl className="mt-4 grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4">
+      {/* Two across in the desktop side column, four across the full width
+          of a tablet. */}
+      <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 lg:grid-cols-2">
         {tiles.map((tile) => (
           <div key={tile.label} className="rounded-lg border border-white/10 bg-white/5 px-3 py-2.5">
             <dt className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
