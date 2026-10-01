@@ -27,8 +27,10 @@ export default function PassFilter({
   if (available.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2">
-      <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+    // One swipeable row on a phone: wrapped, the passes and the region chips
+    // below them took a third of the screen before the first result.
+    <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:flex-wrap sm:justify-center sm:overflow-visible sm:px-0 [&::-webkit-scrollbar]:hidden">
+      <span className="shrink-0 text-xs font-semibold uppercase tracking-wide text-gray-500">
         My pass
       </span>
 
@@ -41,7 +43,7 @@ export default function PassFilter({
             key={pass}
             onClick={() => onToggle(pass)}
             aria-pressed={isOn}
-            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
+            className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-bold transition-all ${
               isOn
                 ? `${meta.className} ring-1 ring-inset ring-white/20`
                 : 'border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 hover:text-white'
@@ -58,7 +60,7 @@ export default function PassFilter({
       {selected.length > 0 && (
         <button
           onClick={onClear}
-          className="rounded-full px-2.5 py-1.5 text-xs font-semibold text-gray-500 underline-offset-2 transition-colors hover:text-white hover:underline"
+          className="shrink-0 rounded-full px-2.5 py-1.5 text-xs font-semibold text-gray-500 underline-offset-2 transition-colors hover:text-white hover:underline"
         >
           Clear
         </button>

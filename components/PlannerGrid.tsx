@@ -2,7 +2,7 @@
 
 import type { Resort } from '@/lib/types';
 import { usePlanner } from '@/hooks/usePlanner';
-import { scoreTone, type DayOutlook } from '@/lib/planner';
+import { bestPerDay, scoreTone, type DayOutlook, type ResortOutlook } from '@/lib/planner';
 import { useUnits } from '@/hooks/useUnits';
 import { formatDistance, formatSnow, formatWind } from '@/lib/units';
 import { PassBadgeList } from '@/components/PassBadge';
@@ -52,7 +52,7 @@ export default function PlannerGrid({ resorts, title, onSelectResort, distances 
             🗓️ 7-Day Planner
             <span className="ml-2 text-sm font-medium text-gray-400">{title}</span>
           </h2>
-          <p className="mt-1 text-sm text-gray-400">
+          <p className="mt-1 hidden text-sm text-gray-400 sm:block">
             Every resort, every day, ranked by conditions. Best day per mountain is
             outlined.
           </p>
@@ -76,17 +76,23 @@ export default function PlannerGrid({ resorts, title, onSelectResort, distances 
       )}
 
       {outlooks.length > 0 && (
+        <BestPerDay outlooks={outlooks} onSelectResort={onSelectResort} units={units} />
+      )}
+
+      {/* On a phone the resort column is capped and the badges dropped, so
+          five or six days fit beside it instead of one. */}
+      {outlooks.length > 0 && (
         <div className="glass-card overflow-x-auto p-0">
-          <table className="w-full min-w-[720px] border-collapse">
+          <table className="w-full border-collapse sm:min-w-[720px]">
             <thead>
               <tr className="border-b border-white/10">
-                <th className="sticky left-0 z-10 bg-slate-900/80 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-400 backdrop-blur">
+                <th className="sticky left-0 z-10 bg-slate-900/80 px-3 py-3 text-left sm:px-4 text-xs font-semibold uppercase tracking-wide text-gray-400 backdrop-blur">
                   Resort
                 </th>
                 {columnDays.map((day) => (
                   <th
                     key={day.dayKey}
-                    className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-400"
+                    className="px-0.5 py-3 text-center text-xs font-semibold sm:px-2 uppercase tracking-wide text-gray-400"
                   >
                     <div>{weekday(day.timestamp, timezone)}</div>
                     <div className="text-[10px] font-normal text-gray-500">
@@ -103,18 +109,23 @@ export default function PlannerGrid({ resorts, title, onSelectResort, distances 
                   key={resort.id}
                   className="border-b border-white/5 transition-colors last:border-b-0 hover:bg-white/5"
                 >
-                  <td className="sticky left-0 z-10 bg-slate-900/80 px-4 py-3 backdrop-blur">
+                  <td className="sticky left-0 z-10 bg-slate-900/80 px-3 py-3 backdrop-blur sm:px-4">
                     <button
                       onClick={() => onSelectResort(resort)}
-                      className="text-left transition-colors hover:text-cyan-400"
+                      title={resort.name}
+                      className="block w-24 text-left transition-colors hover:text-cyan-400 sm:w-auto"
                     >
-                      <div className="text-sm font-semibold text-white">{resort.name}</div>
-                      <div className="text-[11px] text-gray-500">
+                      <div className="truncate text-sm font-semibold text-white">{resort.name}</div>
+                      <div className="truncate text-[11px] text-gray-500">
                         {distances?.[resort.id] !== undefined
                           ? `${formatDistance(distances[resort.id], units)} away`
                           : resort.region}
                       </div>
-                      <PassBadgeList passes={resort.passes} size="compact" className="mt-1" />
+                      <PassBadgeList
+                        passes={resort.passes}
+                        size="compact"
+                        className="mt-1 hidden sm:flex"
+                      />
                     </button>
                   </td>
 
@@ -167,9 +178,9 @@ function DayCell({
   // a real one, and "Fair" is a worse answer than "don't know".
   if (!day.hasData) {
     return (
-      <td className="p-1">
+      <td className="p-0.5 sm:p-1">
         <div
-          className="rounded-lg border border-dashed border-white/10 px-2 py-2.5 text-center"
+          className="rounded-lg border border-dashed border-white/10 px-1 py-2.5 text-center sm:px-2"
           title="No forecast published for this day"
         >
           <div className="text-sm font-bold tabular-nums text-gray-600">–</div>
@@ -181,9 +192,9 @@ function DayCell({
   const tone = scoreTone(day.score);
 
   return (
-    <td className="p-1">
+    <td className="p-0.5 sm:p-1">
       <div
-        className={`rounded-lg px-2 py-2.5 text-center ${tone.bg} ${
+        className={`rounded-lg px-1 py-2.5 text-center sm:px-2 ${tone.bg} ${
           isBest ? 'ring-2 ring-inset ring-cyan-400/60' : ''
         }`}
         title={`${tone.label} · score ${day.score}/100 · gusts to ${formatWind(day.maxGustMph, units)}`}
@@ -201,5 +212,66 @@ function DayCell({
         )}
       </div>
     </td>
+  );
+}
+
+/**
+ * The grid read by column: where to go on each day.
+ *
+ * A phone shows the grid a few days at a time, so the question the planner
+ * exists for, "which day, and where", would otherwise take a sideways scroll
+ * per resort. Desktop sees every column at once and doesn't need it.
+ */
+function BestPerDay({
+  outlooks,
+  onSelectResort,
+  units,
+}: {
+  outlooks: ResortOutlook[];
+  onSelectResort: (resort: Resort) => void;
+  units: 'metric' | 'imperial';
+}) {
+  const picks = bestPerDay(outlooks);
+  if (picks.length === 0) return null;
+
+  return (
+    <section className="glass-card p-0 sm:hidden" aria-label="Best mountain each day">
+      <h3 className="px-4 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+        Best pick each day
+      </h3>
+      <ol>
+        {picks.map(({ day, resort }) => {
+          const tone = scoreTone(day.score);
+          return (
+            <li key={day.dayKey} className="border-t border-white/5 first:border-t-0">
+              <button
+                onClick={() => onSelectResort(resort)}
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-white/5"
+              >
+                <span className="w-9 shrink-0 text-xs font-semibold uppercase text-gray-400">
+                  {weekday(day.timestamp, resort.timezone)}
+                  <span className="block text-[10px] font-normal text-gray-500">
+                    {dayNumber(day.timestamp, resort.timezone)}
+                  </span>
+                </span>
+                <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
+                  {resort.name}
+                </span>
+                {day.snowfallIn >= 0.5 && (
+                  <span className="shrink-0 text-xs font-semibold text-cyan-300">
+                    {formatSnow(day.snowfallIn, units)}
+                  </span>
+                )}
+                <span
+                  className={`w-10 shrink-0 rounded-md py-1 text-center text-sm font-bold tabular-nums ${tone.bg} ${tone.text}`}
+                >
+                  {day.score}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }

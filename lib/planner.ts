@@ -147,6 +147,40 @@ export function rankOutlooks(outlooks: ResortOutlook[]): ResortOutlook[] {
   });
 }
 
+export interface DayPick {
+  /** The day as it appears in the winning resort's outlook. */
+  day: DayOutlook;
+  resort: Resort;
+}
+
+/**
+ * The best mountain on each day of the window: the grid read by column.
+ *
+ * On a phone the grid shows a day or two at a time, so "which day, and where"
+ * needs its own answer. Columns follow the first outlook, as the grid does.
+ * Ties go to the snowier day. A day nobody has data for is left out rather
+ * than awarded to whichever resort happens to come first.
+ */
+export function bestPerDay(outlooks: ResortOutlook[]): DayPick[] {
+  const columns = outlooks[0]?.days.map((d) => d.dayKey) ?? [];
+
+  return columns.flatMap((dayKey) => {
+    let pick: DayPick | null = null;
+    for (const { resort, days } of outlooks) {
+      const day = days.find((d) => d.dayKey === dayKey);
+      if (!day?.hasData) continue;
+      if (
+        !pick ||
+        day.score > pick.day.score ||
+        (day.score === pick.day.score && day.snowfallIn > pick.day.snowfallIn)
+      ) {
+        pick = { day, resort };
+      }
+    }
+    return pick ? [pick] : [];
+  });
+}
+
 /** Kept for the planner grid's cell styling; delegates to the shared labels. */
 export function scoreTone(score: number): { bg: string; text: string; label: string } {
   const label = scoreLabel(score);
