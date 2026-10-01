@@ -12,6 +12,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import UnitsToggle from '@/components/UnitsToggle';
 import ViewTabs, { type ViewTab } from '@/components/ViewTabs';
 import NearbyPanel from '@/components/NearbyPanel';
+import HomePicks from '@/components/HomePicks';
 import { useForecast } from '@/hooks/useForecast';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useAutoRefresh } from '@/hooks/useAutoRefresh';
@@ -23,7 +24,7 @@ import { GeolocationProvider, useGeolocation } from '@/hooks/useGeolocation';
 import PassFilter from '@/components/PassFilter';
 import { usePassFilter } from '@/hooks/usePassFilter';
 import { filterByPasses } from '@/lib/passes';
-import { availableRegions, resortsInRegion, REGION_LABELS } from '@/lib/regions';
+import { availableRegions, regionForTimezone, resortsInRegion, REGION_LABELS } from '@/lib/regions';
 import { distanceIndex, resortsNear } from '@/lib/nearby';
 import type { Resort } from '@/lib/types';
 import { StarIcon, BeakerIcon } from '@heroicons/react/24/solid';
@@ -127,6 +128,46 @@ function HomeContent() {
   // The welcome screen keeps the full hero; everywhere else the chrome shrinks
   // so the forecast starts on the first screen.
   const showHero = viewMode === 'single' && !url.resortId;
+
+  // Read after mount: the static prerender would otherwise bake in the build
+  // machine's zone and disagree with the browser on hydration.
+  const [timezone, setTimezone] = useState<string>();
+  useEffect(() => {
+    setTimezone(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  }, []);
+
+  // The home screen leads with the rider's own mountains. Without favorites it
+  // suggests the best few in the range their time zone points to. Favorite ids
+  // can load before the resort list resolves them; wait rather than flash the
+  // suggestions at someone who has a list.
+  const homeRegion =
+    showHero && !hasFavorites
+      ? regionForTimezone(timezone, regions.map((r) => r.code))
+      : null;
+
+  const homePicks =
+    favorites.length > 0 ? (
+      <HomePicks
+        title="Your mountains today"
+        subtitle="Ranked by today's Ride Score"
+        resorts={favorites.slice(0, 6)}
+        show={6}
+        withBestDay
+        onSelectResort={selectResort}
+        seeAllLabel={favorites.length > 6 ? `Compare all ${favorites.length}` : 'Compare'}
+        onSeeAll={() => url.update({ view: 'compare', region: 'Favorites' })}
+      />
+    ) : homeRegion ? (
+      <HomePicks
+        title="Top picks today"
+        subtitle={`${REGION_LABELS[homeRegion]} · star a resort to make this list yours`}
+        resorts={resortsInRegion(visibleResorts, homeRegion, 6)}
+        show={3}
+        onSelectResort={selectResort}
+        seeAllLabel="See all"
+        onSeeAll={() => url.update({ view: 'compare', region: homeRegion })}
+      />
+    ) : null;
 
   const tabs: ViewTab[] = [
     {
@@ -357,27 +398,22 @@ function HomeContent() {
               </div>
             )}
 
+            {!url.resortId && homePicks && (
+              <ErrorBoundary label="Your mountains">{homePicks}</ErrorBoundary>
+            )}
+
             {/* One tap to "what's near me" — no keyboard needed on a phone */}
             {!url.resortId && (
               <ErrorBoundary label="Nearby">{nearbyPanel}</ErrorBoundary>
             )}
 
-            {/* Welcome message */}
             {!url.resortId && (
-              <div className="glass-card text-center py-12 sm:py-16">
-                <div className="text-4xl sm:text-5xl md:text-6xl mb-6">🏔️</div>
-                <h2 className="text-2xl sm:text-3xl font-bold mb-4 px-4 text-white">Welcome to PowderCast!</h2>
-                <p className="text-base sm:text-lg text-gray-400 max-w-2xl mx-auto px-4">
-                  Search for your favorite ski resort above to get hyper-local mountain weather data,
-                  including snow quality predictions, wind hold alerts, and rider intelligence.
-                </p>
-                <div className="mt-6 sm:mt-8 text-xs sm:text-sm text-gray-500 px-4">
-                  {resortsLoading ? 'Loading resorts' : `${allResorts.length} resorts`} across the US, Alps, Dolomites, Pyrenees & Japan • Made by{' '}
-                  <a href="https://greenido.wordpress.com" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">
-                    @greenido
-                  </a>
-                </div>
-              </div>
+              <p className="px-4 text-center text-xs text-gray-500 sm:text-sm">
+                {resortsLoading ? 'Loading resorts' : `${allResorts.length} resorts`} across the US, Alps, Dolomites, Pyrenees & Japan • Made by{' '}
+                <a href="https://greenido.wordpress.com" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 transition-colors">
+                  @greenido
+                </a>
+              </p>
             )}
 
             {/* Selected resort dashboard */}
