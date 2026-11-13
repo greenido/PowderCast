@@ -23,6 +23,7 @@ const CACHE_PATH = path.join(__dirname, '..', '.cache', 'ski_areas.geojson');
 const OUTPUT_PATH = path.join(__dirname, '..', 'public', 'resorts.json');
 const PASSES_PATH = path.join(__dirname, '..', 'data', 'passes.json');
 const WEBCAMS_PATH = path.join(__dirname, '..', 'data', 'webcams.json');
+const NWS_GRIDS_PATH = path.join(__dirname, '..', 'data', 'nws-grids.json');
 
 const METERS_TO_FEET = 3.28084;
 
@@ -296,6 +297,13 @@ async function main() {
   // 404s.
   const webcams = JSON.parse(fs.readFileSync(WEBCAMS_PATH, 'utf8')).webcams;
 
+  // NWS grid cells are resolved by scripts/build-nws-grids.js, which needs the
+  // resort list first. A resort new to this run has none yet and falls back to
+  // a /points lookup at runtime until that script runs again.
+  const nwsGrids = fs.existsSync(NWS_GRIDS_PATH)
+    ? JSON.parse(fs.readFileSync(NWS_GRIDS_PATH, 'utf8')).grids
+    : {};
+
   console.log(`🔍 Scanning ${raw.features.length} ski areas (min ${minRunKm}km of runs)...`);
 
   const resorts = [];
@@ -360,6 +368,7 @@ async function main() {
       website_url: props.websites?.[0] || null,
       runsKm: Math.round(totalRunKm(props)),
       passes: passesFor(props.name, country, passIndex, passesFile.season),
+      ...(country === 'US' ? { nws_grid: nwsGrids[id] || null } : {}),
     });
   }
 

@@ -19,12 +19,13 @@ export function ResortsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-    const version = process.env.NEXT_PUBLIC_APP_VERSION || 'dev';
+    const version = process.env.NEXT_PUBLIC_RESORTS_HASH || 'dev';
 
-    // The version query busts stale copies. resorts.json lives at a fixed URL
-    // and static hosts cache it hard, so without this a browser holding the
-    // previous schema will keep serving it to code that expects the new one.
-    fetch(`${basePath}/resorts.json?v=${version}`, { cache: 'no-cache' })
+    // The query is a hash of the file's contents (see next.config.js), so a
+    // browser holding an older copy holds it under a different URL. That makes
+    // ordinary HTTP caching safe, and saves a revalidation round trip in front
+    // of every forecast.
+    fetch(`${basePath}/resorts.json?v=${version}`)
       .then((res) => {
         if (!res.ok) throw new Error(`Failed to load resorts (${res.status})`);
         return res.json();

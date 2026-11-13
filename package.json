@@ -15,6 +15,7 @@
     "test": "node scripts/run-tests.js",
     "test:network": "node scripts/run-tests.js --network",
     "build:resorts": "node scripts/build-resorts.js",
+    "build:nws-grids": "node scripts/build-nws-grids.js",
     "verify:passes": "node scripts/build-resorts.js --check",
     "generate:icons": "node scripts/generate-icons.js"
   },

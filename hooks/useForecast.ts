@@ -69,6 +69,7 @@ export function useForecast(resort: Resort | null, elevation: Elevation = 'base'
         lon: point.lon,
         elevationM: point.elevationM,
         timezone: resort.timezone,
+        nwsGrid: resort.nws_grid ?? undefined,
         signal: controller.signal,
       });
 
@@ -207,6 +208,7 @@ export function useMultiForecast(
               lon: point.lon,
               elevationM: point.elevationM,
               timezone: resort.timezone,
+              nwsGrid: resort.nws_grid ?? undefined,
               signal: controller.signal,
             });
             const now = Date.now();

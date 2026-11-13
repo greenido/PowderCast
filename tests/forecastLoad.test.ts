@@ -280,6 +280,55 @@ const MAMMOTH = { lat: 37.6395, lon: -119.0262, timezone: 'America/Los_Angeles' 
     assert.equal(count('open-meteo'), 2, 'the supplement is per elevation, as it should be');
   });
 
+  console.log('\nStored NWS grid cells');
+
+  const STORED = { ...MAMMOTH, nwsGrid: { office: 'REV', x: 57, y: 17 } };
+
+  await testAsync('a stored grid cell skips the /points lookup', async () => {
+    stub(upstream());
+    const forecast = await new NWSProvider().fetchForecast(STORED);
+    assert.equal(count('/points/'), 0);
+    assert.equal(forecast.hourly.temperatureC[0], -5);
+    assert.equal(forecast.location?.timezone, 'America/Los_Angeles');
+  });
+
+  await testAsync('grid and supplement start together with a stored cell', async () => {
+    stub(upstream());
+    await fetchForecast({ ...STORED, elevationM: 2457 });
+    assert.deepEqual(
+      requests.slice(0, 3).map((u) => (u.includes('open-meteo') ? 'om' : 'nws')).sort(),
+      ['nws', 'nws', 'om'],
+      'grid, narrative and supplement are all first-wave requests'
+    );
+  });
+
+  await testAsync('a stale stored cell falls back to /points', async () => {
+    stub(
+      upstream((url) =>
+        url.includes('/gridpoints/BOI/1,1') ? Promise.resolve(json({}, 404)) : null
+      )
+    );
+    const forecast = await new NWSProvider().fetchForecast({
+      ...MAMMOTH,
+      nwsGrid: { office: 'BOI', x: 1, y: 1 },
+    });
+    assert.equal(forecast.source, 'nws');
+    assert.equal(count('/points/'), 1);
+    assert.equal(forecast.sourceUrl, POINT.properties.forecastGridData);
+  });
+
+  await testAsync('a 500 on a stored cell is an outage, not a stale cell', async () => {
+    stub(
+      upstream((url) =>
+        url.includes('/gridpoints/') && !url.endsWith('/forecast')
+          ? Promise.resolve(json({}, 500))
+          : null
+      )
+    );
+    await assert.rejects(new NWSProvider().fetchForecast(STORED), /gridpoint failed/);
+    assert.equal(count('/points/'), 0, 'no point lookup can fix a 500');
+  });
+
   global.fetch = realFetch;
   console.warn = realWarn;
   console.log(`\n✅ ${passed} assertions passed\n`);
