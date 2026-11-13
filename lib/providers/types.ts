@@ -1,4 +1,4 @@
-import type { NormalizedForecast } from '@/lib/types';
+import type { NormalizedForecast, NwsGrid } from '@/lib/types';
 
 export interface ForecastRequest {
   lat: number;
@@ -11,6 +11,11 @@ export interface ForecastRequest {
   elevationM?: number;
   /** IANA timezone for aligning local-day boundaries. */
   timezone?: string;
+  /**
+   * The NWS grid cell for this coordinate, when it is already known. NWS uses
+   * it to skip the /points lookup; every other provider ignores it.
+   */
+  nwsGrid?: NwsGrid;
   signal?: AbortSignal;
 }
 

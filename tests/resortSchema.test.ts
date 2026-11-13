@@ -75,6 +75,31 @@ test('a record with no optional fields at all still sanitizes', () => {
   assert.ok(Array.isArray(resort!.passes));
 });
 
+test('a well-formed NWS grid cell is kept', () => {
+  const resort = sanitizeResort({
+    id: 'x',
+    name: 'Grid Mountain',
+    base_lat: 39.6,
+    base_lon: -106.4,
+    nws_grid: { office: 'BOU', x: 40, y: 60 },
+  });
+  assert.deepEqual(resort!.nws_grid, { office: 'BOU', x: 40, y: 60 });
+});
+
+test('a malformed NWS grid cell is dropped, never put in a URL', () => {
+  for (const nws_grid of [
+    { office: '../points', x: 1, y: 2 },
+    { office: 'bou', x: 1, y: 2 },
+    { office: 'BOU', x: 1.5, y: 2 },
+    { office: 'BOU', x: -1, y: 2 },
+    { office: 'BOU', x: '1', y: 2 },
+    'BOU/40,60',
+  ]) {
+    const resort = sanitizeResort({ id: 'x', name: 'X', base_lat: 39, base_lon: -106, nws_grid });
+    assert.equal(resort!.nws_grid, null, JSON.stringify(nws_grid));
+  }
+});
+
 // ---------------------------------------------------------------------------
 console.log('\nRejecting unusable records');
 
@@ -218,6 +243,12 @@ test('nearly every resort offers at least one link out', () => {
   const linked = resorts.filter((r) => r.webcam_url || r.website_url);
   const coverage = linked.length / resorts.length;
   assert.ok(coverage > 0.9, `only ${Math.round(coverage * 100)}% of resorts link anywhere`);
+});
+
+test('every shipped US resort carries an NWS grid cell', () => {
+  const { resorts } = sanitizeResorts(require('../public/resorts.json'));
+  const missing = resorts.filter((r) => r.country === 'US' && !r.nws_grid).map((r) => r.id);
+  assert.deepEqual(missing, [], 'rerun scripts/build-nws-grids.js');
 });
 
 console.log(`\n✅ ${passed} assertions passed\n`);

@@ -80,6 +80,7 @@ export function usePlanner(resorts: Resort[], days = 7, concurrency = 4) {
               lon: base.lon,
               elevationM: midElevationM,
               timezone: resort.timezone,
+              nwsGrid: resort.nws_grid ?? undefined,
               signal: controller.signal,
             });
             const now = Date.now();

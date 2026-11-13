@@ -61,7 +61,20 @@ export interface Resort {
   /** Total pisted run length in km — a decent proxy for resort size. */
   runsKm?: number;
   passes?: PassAffiliation[];
+  /**
+   * The NWS forecast grid cell for this resort's coordinate, resolved at build
+   * time by scripts/build-nws-grids.js. Saves the /points lookup that used to
+   * be the first serial round trip of every US forecast. US resorts only.
+   */
+  nws_grid?: NwsGrid | null;
   created_at?: string;
+}
+
+/** An NWS forecast office and grid cell, as /points/{lat},{lon} returns them. */
+export interface NwsGrid {
+  office: string;
+  x: number;
+  y: number;
 }
 
 // ---------------------------------------------------------------------------

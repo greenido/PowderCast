@@ -1,8 +1,8 @@
 import type { WeatherProvider, ForecastRequest } from './types';
-import type { NormalizedForecast, HourlySeries, NarrativePeriod } from '@/lib/types';
+import type { NormalizedForecast, HourlySeries, NarrativePeriod, NwsGrid } from '@/lib/types';
 import { emptyHourlySeries } from '@/lib/types';
 import { combineSignals } from '@/lib/fetchWithRetry';
-import { sharedFetchJson } from '@/lib/sharedFetch';
+import { sharedFetchJson, HttpError } from '@/lib/sharedFetch';
 import {
   sumAccumulationForward,
   getAverageForward,
@@ -74,6 +74,23 @@ function resample(
   return out;
 }
 
+interface CellUrls {
+  gridUrl: string;
+  forecastUrl: string;
+}
+
+function cellFromGrid({ office, x, y }: NwsGrid): CellUrls {
+  const gridUrl = `${API_BASE}/gridpoints/${office}/${x},${y}`;
+  return { gridUrl, forecastUrl: `${gridUrl}/forecast` };
+}
+
+function cellFromPoint(point: any): CellUrls {
+  return {
+    gridUrl: point.properties.forecastGridData,
+    forecastUrl: point.properties.forecast,
+  };
+}
+
 export class NWSProvider implements WeatherProvider {
   id = 'nws';
   name = 'US National Weather Service';
@@ -90,7 +107,13 @@ export class NWSProvider implements WeatherProvider {
     return coversUS(lat, lon);
   }
 
-  async fetchForecast({ lat, lon, signal }: ForecastRequest): Promise<NormalizedForecast> {
+  async fetchForecast({
+    lat,
+    lon,
+    timezone,
+    nwsGrid,
+    signal,
+  }: ForecastRequest): Promise<NormalizedForecast> {
     // One deadline for the whole chain rather than a timeout per call. With
     // per-call timeouts and retries a stalled NWS cost ~33s per step, and the
     // chain has two steps before the Open-Meteo fallback could even start.
@@ -117,22 +140,13 @@ export class NWSProvider implements WeatherProvider {
       return new Error(`NWS ${step} failed: ${err instanceof Error ? err.message : err}`);
     };
 
-    try {
-      let point: any;
-      try {
-        point = await get(`${API_BASE}/points/${lat},${lon}`, POINT_TTL_MS);
-      } catch (err) {
-        throw describe('point lookup', err);
-      }
-      const forecastUrl: string = point.properties.forecast;
-      const gridUrl: string = point.properties.forecastGridData;
-
-      // The narrative is the prose discussion, not the numbers. Its endpoint
-      // 500s on its own schedule, and it used to take the whole NWS forecast
-      // down with it. It gets a short grace period after the grid lands.
+    // The prose narrative is not the numbers. Its endpoint 500s on its own
+    // schedule, and it used to take the whole NWS forecast down with it. It
+    // gets a short grace period after the grid lands, then we go without.
+    const fetchCell = async (cell: CellUrls) => {
       const narrativeCutoff = new AbortController();
       const narrativePromise = get<{ properties?: { periods?: NarrativePeriod[] } }>(
-        forecastUrl,
+        cell.forecastUrl,
         FORECAST_TTL_MS,
         combineSignals([chainSignal, narrativeCutoff.signal])
       ).catch((err) => {
@@ -144,18 +158,55 @@ export class NWSProvider implements WeatherProvider {
 
       let grid: any;
       try {
-        grid = await get(gridUrl, FORECAST_TTL_MS);
+        grid = await get(cell.gridUrl, FORECAST_TTL_MS);
       } catch (err) {
         narrativeCutoff.abort();
-        throw describe('gridpoint', err);
+        throw err;
       }
 
       const graceTimer = setTimeout(() => narrativeCutoff.abort(), NARRATIVE_GRACE_MS);
       const narrative = await narrativePromise;
       clearTimeout(graceTimer);
+      return { grid, periods: narrative?.properties?.periods };
+    };
+
+    const lookUpPoint = async () => {
+      try {
+        return await get<any>(`${API_BASE}/points/${lat},${lon}`, POINT_TTL_MS);
+      } catch (err) {
+        throw describe('point lookup', err);
+      }
+    };
+
+    try {
+      // A grid cell resolved at build time skips /points, which was the first
+      // serial round trip of every US forecast.
+      let point: any = nwsGrid ? null : await lookUpPoint();
+      let cell = point ? cellFromPoint(point) : cellFromGrid(nwsGrid!);
+
+      let result: Awaited<ReturnType<typeof fetchCell>>;
+      try {
+        result = await fetchCell(cell);
+      } catch (err) {
+        // NWS re-grids an office now and then, and a stored cell then 404s.
+        // Resolve the coordinate properly rather than give up on NWS.
+        const stale = !point && err instanceof HttpError && err.status === 404;
+        if (!stale || signal?.aborted || deadline.signal.aborted) {
+          throw describe('gridpoint', err);
+        }
+        console.warn(`[nws] stored grid ${nwsGrid!.office}/${nwsGrid!.x},${nwsGrid!.y} is stale`);
+        point = await lookUpPoint();
+        cell = cellFromPoint(point);
+        try {
+          result = await fetchCell(cell);
+        } catch (retryErr) {
+          throw describe('gridpoint', retryErr);
+        }
+      }
+
       if (signal?.aborted) throw new DOMException('The operation was aborted.', 'AbortError');
 
-      return this.normalize(point, grid, narrative?.properties?.periods, gridUrl);
+      return this.normalize(point, result.grid, result.periods, cell.gridUrl, timezone);
     } finally {
       clearTimeout(deadlineTimer);
     }
@@ -165,7 +216,8 @@ export class NWSProvider implements WeatherProvider {
     point: any,
     grid: any,
     periods: NarrativePeriod[] | undefined,
-    gridUrl: string
+    gridUrl: string,
+    timezone: string | undefined
   ): NormalizedForecast {
     const props = grid.properties;
 
@@ -214,10 +266,11 @@ export class NWSProvider implements WeatherProvider {
       model: 'NDFD',
       elevationM: props.elevation?.value ?? null,
       location: {
-        name: point.properties.relativeLocation?.properties?.city,
-        region: point.properties.relativeLocation?.properties?.state,
+        // Only known when /points was called; nothing renders these today.
+        name: point?.properties.relativeLocation?.properties?.city,
+        region: point?.properties.relativeLocation?.properties?.state,
         country: 'US',
-        timezone: point.properties.timeZone,
+        timezone: point?.properties.timeZone ?? timezone,
       },
       hourly,
       coverage: measureCoverage(hourly),

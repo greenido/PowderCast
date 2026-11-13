@@ -10,7 +10,7 @@
  * safe default, so one bad record costs one resort rather than the whole app.
  */
 
-import type { Resort, RegionCode } from '@/lib/types';
+import type { Resort, RegionCode, NwsGrid } from '@/lib/types';
 
 const VALID_REGION_CODES: RegionCode[] = [
   'us-west',
@@ -121,7 +121,22 @@ export function sanitizeResort(raw: unknown): Resort | null {
     website_url: typeof r.website_url === 'string' ? r.website_url : null,
     runsKm: isFiniteNumber(r.runsKm) ? r.runsKm : 0,
     passes: Array.isArray(r.passes) ? (r.passes as Resort['passes']) : [],
+    nws_grid: sanitizeNwsGrid(r.nws_grid),
   };
+}
+
+/**
+ * A grid hint goes straight into an api.weather.gov URL, so anything that is
+ * not plainly an office code and two cell indices is dropped. The provider
+ * falls back to a /points lookup without one.
+ */
+function sanitizeNwsGrid(value: unknown): NwsGrid | null {
+  if (!value || typeof value !== 'object') return null;
+  const { office, x, y } = value as Record<string, unknown>;
+  const cell = (n: unknown) => typeof n === 'number' && Number.isInteger(n) && n >= 0;
+  if (typeof office !== 'string' || !/^[A-Z]{3}$/.test(office)) return null;
+  if (!cell(x) || !cell(y)) return null;
+  return { office, x: x as number, y: y as number };
 }
 
 export function sanitizeResorts(data: unknown): { resorts: Resort[]; dropped: number } {
