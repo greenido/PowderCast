@@ -1,4 +1,4 @@
-interface FetchWithRetryOptions extends RequestInit {
+export interface FetchWithRetryOptions extends RequestInit {
   timeoutMs?: number;
   maxRetries?: number;
 }
@@ -26,7 +26,7 @@ function isRetryable(status: number): boolean {
  * AbortSignal.any() is Chrome 116 / Safari 17.4 / Firefox 124, so there is a
  * manual fallback for browsers a season or two behind.
  */
-function combineSignals(signals: AbortSignal[]): AbortSignal {
+export function combineSignals(signals: AbortSignal[]): AbortSignal {
   if (signals.length === 1) return signals[0];
 
   if (typeof AbortSignal.any === 'function') {

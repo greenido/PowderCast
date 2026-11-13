@@ -37,14 +37,14 @@ const SERIES_KEYS: Array<Exclude<keyof HourlySeries, 'time'>> = [
   'snowDepthCm',
 ];
 
-interface SupplementRequest {
+export interface SupplementRequest {
   lat: number;
   lon: number;
   elevationM?: number;
   signal?: AbortSignal;
 }
 
-interface SupplementData {
+export interface SupplementData {
   /** Epoch ms, hourly, ascending. Spans PAST_DAYS back through +7 days. */
   time: number[];
   snowfallMm: Array<number | null>;
@@ -52,7 +52,28 @@ interface SupplementData {
   snowDepthCm: Array<number | null>;
 }
 
-async function fetchSupplement({
+/**
+ * Fetch the supplement. Never rejects: the forecast is complete and useful
+ * without it, so a failure resolves to null. That also lets the routing layer
+ * start it alongside the primary provider without risking an unhandled
+ * rejection if the primary fails first.
+ */
+export async function fetchSupplement(request: SupplementRequest): Promise<SupplementData | null> {
+  try {
+    return await requestSupplement(request);
+  } catch (err) {
+    if (!request.signal?.aborted) {
+      console.warn(
+        `[supplement] snow depth/history unavailable: ${
+          err instanceof Error ? err.message : err
+        }`
+      );
+    }
+    return null;
+  }
+}
+
+async function requestSupplement({
   lat,
   lon,
   elevationM,
@@ -110,16 +131,14 @@ export async function withSnowDepthAndHistory(
   forecast: NormalizedForecast,
   request: SupplementRequest
 ): Promise<NormalizedForecast> {
-  let data: SupplementData | null = null;
-  try {
-    data = await fetchSupplement(request);
-  } catch (err) {
-    console.warn(
-      `[supplement] snow depth/history unavailable: ${
-        err instanceof Error ? err.message : err
-      }`
-    );
-  }
+  return graftSupplement(forecast, await fetchSupplement(request));
+}
+
+/** The graft itself, for a supplement that was fetched ahead of time. */
+export function graftSupplement(
+  forecast: NormalizedForecast,
+  data: SupplementData | null
+): NormalizedForecast {
   if (!data) return forecast;
 
   const h = forecast.hourly;

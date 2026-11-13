@@ -3,7 +3,7 @@ import type { NormalizedForecast } from '@/lib/types';
 import { NWSProvider } from './nws';
 import { OpenMeteoProvider } from './openMeteo';
 import { applyElevationCorrection } from '@/lib/lapseRate';
-import { withSnowDepthAndHistory } from './supplement';
+import { fetchSupplement, graftSupplement, type SupplementData } from './supplement';
 
 export type { WeatherProvider, ForecastRequest } from './types';
 export { NWSProvider } from './nws';
@@ -50,6 +50,19 @@ export async function fetchForecast(
 ): Promise<NormalizedForecast> {
   const { primary, fallback } = selectProviders(request.lat, request.lon);
 
+  // The supplement needs only the coordinate and elevation, so it starts now
+  // rather than after the primary answers. It used to be one more round trip
+  // at the end of every US load. It never rejects; see fetchSupplement().
+  let supplement: Promise<SupplementData | null> | null = null;
+  const startSupplement = () =>
+    (supplement ??= fetchSupplement({
+      lat: request.lat,
+      lon: request.lon,
+      elevationM: request.elevationM,
+      signal: request.signal,
+    }));
+  if (!primary.suppliesSnowDepthAndHistory) startSupplement();
+
   const serve = async (provider: WeatherProvider) => {
     const forecast = await provider.fetchForecast(request);
 
@@ -63,12 +76,7 @@ export async function fetchForecast(
     // settled depth is a measurement, not a forecast temperature.
     if (provider.suppliesSnowDepthAndHistory) return corrected;
 
-    return withSnowDepthAndHistory(corrected, {
-      lat: request.lat,
-      lon: request.lon,
-      elevationM: request.elevationM,
-      signal: request.signal,
-    });
+    return graftSupplement(corrected, await startSupplement());
   };
 
   try {
