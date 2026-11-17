@@ -119,31 +119,34 @@ export default function FutureSnowWidget({ hourlyData }: FutureSnowWidgetProps) 
               
               {/* Snow distribution mini-chart */}
               <div className="mt-3 pt-3 border-t border-white/10">
-                <div className="flex items-end gap-1 h-12">
-                  {day.hours.map((hour, hourIndex) => {
+                <div className="flex gap-1 h-12">
+                  {(() => {
                     const maxDaySnow = Math.max(...day.hours.map(h => h.snowfall));
-                    const barHeight = maxDaySnow > 0 ? (hour.snowfall / maxDaySnow) * 100 : 0;
-                    
-                    return (
-                      <div
-                        key={hourIndex}
-                        className="flex-1 group relative"
-                        style={{ minWidth: '8px' }}
-                      >
-                        <div className="flex flex-col items-center justify-end h-full">
+                    return day.hours.map((hour, hourIndex) => {
+                      const barHeight = maxDaySnow > 0 ? (hour.snowfall / maxDaySnow) * 100 : 0;
+
+                      // Column fills the row's full height so the bar's % height resolves.
+                      return (
+                        <div
+                          key={hourIndex}
+                          className="flex-1 h-full flex items-end group relative"
+                          style={{ minWidth: '8px' }}
+                        >
                           <div
                             className={`w-full bg-gradient-to-t ${qualityColor} rounded-t-sm transition-all`}
-                            style={{ height: `${barHeight}%` }}
-                          >
-                            {/* Tooltip on hover */}
-                            <div className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 border border-white/20 rounded text-xs whitespace-nowrap z-10">
-                              {new Date(hour.time).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}: {formatSnow(hour.snowfall, units)}
-                            </div>
+                            style={{
+                              height: `${barHeight}%`,
+                              minHeight: hour.snowfall > 0 ? '2px' : undefined,
+                            }}
+                          />
+                          {/* Tooltip on hover */}
+                          <div className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 border border-white/20 rounded text-xs whitespace-nowrap z-10">
+                            {new Date(hour.time).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}: {formatSnow(hour.snowfall, units)}
                           </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                 </div>
                 <div className="text-xs text-gray-500 text-center mt-1">
                   Hourly distribution
