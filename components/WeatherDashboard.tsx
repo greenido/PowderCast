@@ -105,8 +105,14 @@ export default function WeatherDashboard({
                 />
                 <BaseDepthCard snowDepthIn={weatherData.snowDepthIn} />
               </div>
-              <HourlySnowForecast hourlyData={weatherData.hourlySnowForecast} />
-              <FutureSnowWidget hourlyData={weatherData.hourlySnowForecast} />
+              <HourlySnowForecast
+                hourlyData={weatherData.hourlySnowForecast}
+                timeZone={selectedResort.timezone}
+              />
+              <FutureSnowWidget
+                hourlyData={weatherData.hourlySnowForecast}
+                timeZone={selectedResort.timezone}
+              />
               <SnowQualityTag
                 quality={weatherData.snowQuality}
                 temperature={weatherData.precipTemp}
