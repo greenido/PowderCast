@@ -4,9 +4,11 @@ import { formatSnow, formatTemp, formatWind } from '@/lib/units';
 
 interface HourlySnowForecastProps {
   hourlyData: HourlySnowData[];
+  /** Resort's IANA timezone; hours are labelled on the mountain's clock. */
+  timeZone: string;
 }
 
-export default function HourlySnowForecast({ hourlyData }: HourlySnowForecastProps) {
+export default function HourlySnowForecast({ hourlyData, timeZone }: HourlySnowForecastProps) {
   const { units } = useUnits();
 
   // Filter to show only hours with snowfall
@@ -42,11 +44,13 @@ export default function HourlySnowForecast({ hourlyData }: HourlySnowForecastPro
             const date = new Date(hour.time);
             const timeLabel = date.toLocaleTimeString('en-US', { 
               hour: 'numeric', 
-              hour12: true 
+              hour12: true,
+              timeZone,
             });
             const dateLabel = date.toLocaleDateString('en-US', { 
               month: 'short', 
-              day: 'numeric' 
+              day: 'numeric',
+              timeZone,
             });
             
             // Determine quality color

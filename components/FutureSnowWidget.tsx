@@ -4,6 +4,8 @@ import { formatSnow, formatTemp, formatWind } from '@/lib/units';
 
 interface FutureSnowWidgetProps {
   hourlyData: HourlySnowData[];
+  /** Resort's IANA timezone; days break at the mountain's local midnight. */
+  timeZone: string;
 }
 
 interface DailySnowSummary {
@@ -16,11 +18,11 @@ interface DailySnowSummary {
   hours: HourlySnowData[];
 }
 
-export default function FutureSnowWidget({ hourlyData }: FutureSnowWidgetProps) {
+export default function FutureSnowWidget({ hourlyData, timeZone }: FutureSnowWidgetProps) {
   const { units } = useUnits();
 
-  // Group hourly data by day
-  const dailySummaries = groupByDay(hourlyData);
+  // Group hourly data by the resort's local day
+  const dailySummaries = groupByDay(hourlyData, timeZone);
   
   // Calculate total forecast snowfall
   const totalForecastSnow = hourlyData.reduce((sum, hour) => sum + hour.snowfall, 0);
@@ -141,7 +143,7 @@ export default function FutureSnowWidget({ hourlyData }: FutureSnowWidgetProps) 
                           />
                           {/* Tooltip on hover */}
                           <div className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 border border-white/20 rounded text-xs whitespace-nowrap z-10">
-                            {new Date(hour.time).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true })}: {formatSnow(hour.snowfall, units)}
+                            {new Date(hour.time).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true, timeZone })}: {formatSnow(hour.snowfall, units)}
                           </div>
                         </div>
                       );
@@ -172,31 +174,49 @@ export default function FutureSnowWidget({ hourlyData }: FutureSnowWidgetProps) 
   );
 }
 
-function groupByDay(hourlyData: HourlySnowData[]): DailySnowSummary[] {
+export function groupByDay(
+  hourlyData: HourlySnowData[],
+  timeZone: string,
+  now: number = Date.now()
+): DailySnowSummary[] {
+  // en-CA formats as YYYY-MM-DD, so keys sort chronologically.
+  const dayKeyFormat = new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
   const dayMap = new Map<string, HourlySnowData[]>();
-  
-  // Group hours by day
+
+  // Group hours by the resort's local calendar day
   hourlyData.forEach(hour => {
-    const date = new Date(hour.time);
-    const dayKey = date.toISOString().split('T')[0]; // YYYY-MM-DD
-    
+    const dayKey = dayKeyFormat.format(new Date(hour.time));
+
     if (!dayMap.has(dayKey)) {
       dayMap.set(dayKey, []);
     }
     dayMap.get(dayKey)!.push(hour);
   });
-  
+
+  const todayKey = dayKeyFormat.format(new Date(now));
+  const tomorrowKey = addDays(todayKey, 1);
+
   // Create daily summaries
   const summaries: DailySnowSummary[] = [];
-  
+
   dayMap.forEach((hours, dateKey) => {
     const totalSnowfall = hours.reduce((sum, h) => sum + h.snowfall, 0);
-    
+
     // Only include days with snowfall
     if (totalSnowfall > 0) {
-      const date = new Date(dateKey);
-      const dayName = getDayName(date);
-      const dateFormatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      // Noon UTC on the key's calendar date, formatted in UTC, labels that date
+      // without any timezone shifting it to a neighbour.
+      const date = new Date(`${dateKey}T12:00:00Z`);
+      const dayName =
+        dateKey === todayKey ? 'Today'
+        : dateKey === tomorrowKey ? 'Tomorrow'
+        : date.toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' });
+      const dateFormatted = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
       
       const avgTemperature = hours.reduce((sum, h) => sum + h.temperature, 0) / hours.length;
       const maxWindSpeed = Math.max(...hours.map(h => h.windSpeed));
@@ -231,19 +251,10 @@ function groupByDay(hourlyData: HourlySnowData[]): DailySnowSummary[] {
   return summaries;
 }
 
-function getDayName(date: Date): string {
-  const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  
-  const dateStr = date.toDateString();
-  const todayStr = today.toDateString();
-  const tomorrowStr = tomorrow.toDateString();
-  
-  if (dateStr === todayStr) return 'Today';
-  if (dateStr === tomorrowStr) return 'Tomorrow';
-  
-  return date.toLocaleDateString('en-US', { weekday: 'long' });
+/** Shift a YYYY-MM-DD key by whole calendar days. */
+function addDays(dayKey: string, days: number): string {
+  const [y, m, d] = dayKey.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 
 function getQualityEmoji(quality: string): string {
