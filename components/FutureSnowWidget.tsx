@@ -131,7 +131,7 @@ export default function FutureSnowWidget({ hourlyData, timeZone }: FutureSnowWid
                       return (
                         <div
                           key={hourIndex}
-                          className="flex-1 h-full flex items-end group relative"
+                          className="flex-1 h-full flex items-end group/bar relative"
                           style={{ minWidth: '8px' }}
                         >
                           <div
@@ -141,8 +141,8 @@ export default function FutureSnowWidget({ hourlyData, timeZone }: FutureSnowWid
                               minHeight: hour.snowfall > 0 ? '2px' : undefined,
                             }}
                           />
-                          {/* Tooltip on hover */}
-                          <div className="hidden group-hover:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 border border-white/20 rounded text-xs whitespace-nowrap z-10">
+                          {/* Tooltip on hover; named group so an outer .group (e.g. a <details>) can't open them all */}
+                          <div className="hidden group-hover/bar:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 border border-white/20 rounded text-xs whitespace-nowrap z-10">
                             {new Date(hour.time).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true, timeZone })}: {formatSnow(hour.snowfall, units)}
                           </div>
                         </div>
@@ -150,7 +150,22 @@ export default function FutureSnowWidget({ hourlyData, timeZone }: FutureSnowWid
                     });
                   })()}
                 </div>
-                <div className="text-xs text-gray-500 text-center mt-1">
+                {/* Hour axis: same columns as the bars, labelled every 3 hours */}
+                <div className="flex gap-1 mt-1 text-[10px] leading-none text-gray-400">
+                  {day.hours.map((hour, hourIndex) => {
+                    const h = localHour(hour.time, timeZone);
+                    return (
+                      <div
+                        key={hourIndex}
+                        className="flex-1 flex justify-center whitespace-nowrap"
+                        style={{ minWidth: '8px' }}
+                      >
+                        {h % 3 === 0 ? formatHourShort(h) : ''}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="text-xs text-gray-500 text-center mt-2">
                   Hourly distribution
                 </div>
               </div>
@@ -255,6 +270,19 @@ export function groupByDay(
 function addDays(dayKey: string, days: number): string {
   const [y, m, d] = dayKey.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+/** Hour of day (0-23) at the resort. */
+function localHour(time: string, timeZone: string): number {
+  const h = Number(
+    new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone }).format(new Date(time))
+  );
+  return h % 24;
+}
+
+/** Compact axis label: 0 → "12a", 15 → "3p". */
+function formatHourShort(h: number): string {
+  return `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? 'a' : 'p'}`;
 }
 
 function getQualityEmoji(quality: string): string {
