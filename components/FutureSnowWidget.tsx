@@ -143,7 +143,7 @@ export default function FutureSnowWidget({ hourlyData, timeZone }: FutureSnowWid
                           />
                           {/* Tooltip on hover; named group so an outer .group (e.g. a <details>) can't open them all */}
                           <div className="hidden group-hover/bar:block absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 border border-white/20 rounded text-xs whitespace-nowrap z-10">
-                            {new Date(hour.time).toLocaleTimeString('en-US', { hour: 'numeric', hour12: true, timeZone })}: {formatSnow(hour.snowfall, units)}
+                            {formatHour(localHour(hour.time, timeZone))}: {formatSnow(hour.snowfall, units)}
                           </div>
                         </div>
                       );
@@ -151,7 +151,7 @@ export default function FutureSnowWidget({ hourlyData, timeZone }: FutureSnowWid
                   })()}
                 </div>
                 {/* Hour axis: same columns as the bars, labelled every 3 hours */}
-                <div className="flex gap-1 mt-1 text-[10px] leading-none text-gray-400">
+                <div className="flex gap-1 mt-1 text-[8px] leading-none text-gray-400">
                   {day.hours.map((hour, hourIndex) => {
                     const h = localHour(hour.time, timeZone);
                     return (
@@ -160,7 +160,7 @@ export default function FutureSnowWidget({ hourlyData, timeZone }: FutureSnowWid
                         className="flex-1 flex justify-center whitespace-nowrap"
                         style={{ minWidth: '8px' }}
                       >
-                        {h % 3 === 0 ? formatHourShort(h) : ''}
+                        {h % 3 === 0 ? formatHour(h) : ''}
                       </div>
                     );
                   })}
@@ -280,9 +280,9 @@ function localHour(time: string, timeZone: string): number {
   return h % 24;
 }
 
-/** Compact axis label: 0 → "12a", 15 → "3p". */
-function formatHourShort(h: number): string {
-  return `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? 'a' : 'p'}`;
+/** 24-hour label: 0 → "00:00", 13 → "13:00". */
+function formatHour(h: number): string {
+  return `${String(h).padStart(2, '0')}:00`;
 }
 
 function getQualityEmoji(quality: string): string {
