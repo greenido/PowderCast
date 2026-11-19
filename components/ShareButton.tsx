@@ -31,15 +31,18 @@ async function copyText(text: string): Promise<boolean> {
 
 interface ShareButtonProps {
   title: string;
-  text: string;
 }
 
 /**
  * Share the current view. The native share sheet on phones (and Safari),
  * copy-to-clipboard everywhere else. Shares the live URL, which carries the
  * resort and elevation, so the recipient lands on exactly this view.
+ *
+ * No `text` field: the share sheet's Copy action joins it onto the URL, so a
+ * pasted link came with a sentence attached. Messages builds its preview from
+ * the page itself, so the text added nothing there.
  */
-export default function ShareButton({ title, text }: ShareButtonProps) {
+export default function ShareButton({ title }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
 
   async function share() {
@@ -47,7 +50,7 @@ export default function ShareButton({ title, text }: ShareButtonProps) {
 
     if (typeof navigator.share === 'function') {
       try {
-        await navigator.share({ title, text, url });
+        await navigator.share({ title, url });
         return;
       } catch (err) {
         // Dismissing the sheet rejects with AbortError; that is not a failure.

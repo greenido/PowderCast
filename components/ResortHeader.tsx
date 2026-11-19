@@ -53,10 +53,7 @@ export default function ResortHeader({
               className={`h-5 w-5 sm:h-6 sm:w-6 ${isFavorite ? 'text-yellow-400' : 'text-gray-600'}`}
             />
           </button>
-          <ShareButton
-            title={`${resort.name} · PowderCast`}
-            text={`Mountain forecast for ${resort.name}`}
-          />
+          <ShareButton title={`${resort.name} · PowderCast`} />
         </div>
       </div>
     </div>
