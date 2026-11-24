@@ -82,7 +82,9 @@ export async function fetchForecast(
   try {
     return await serve(primary);
   } catch (err) {
-    if (!fallback) throw err;
+    // A cancelled request is the caller's decision, not an NWS outage: trying
+    // the fallback would only start another request on the same dead signal.
+    if (!fallback || request.signal?.aborted) throw err;
 
     console.warn(
       `[providers] ${primary.id} failed (${

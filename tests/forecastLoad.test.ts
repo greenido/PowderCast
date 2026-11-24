@@ -249,6 +249,19 @@ const MAMMOTH = { lat: 37.6395, lon: -119.0262, timezone: 'America/Los_Angeles' 
     assert.equal(count('/gridpoints/REV/57,17'), 2, 'grid once, narrative once: no retries');
   });
 
+  await testAsync('a caller abort does not fall back to Open-Meteo', async () => {
+    stub(upstream((url, init) => (url.includes('/gridpoints/') ? hang(init) : null)));
+    let warned = false;
+    console.warn = () => (warned = true);
+    const controller = new AbortController();
+    const pending = fetchForecast({ ...MAMMOTH, elevationM: 2457, signal: controller.signal });
+    setTimeout(() => controller.abort(), 20);
+    await assert.rejects(pending, (err: Error) => err.name === 'AbortError');
+    console.warn = () => {};
+    assert.equal(warned, false, 'no "nws failed, falling back" for a cancel');
+    assert.equal(count('/v1/forecast?') - 1, 0, 'only the supplement hit Open-Meteo');
+  });
+
   await testAsync('the supplement starts before NWS answers', async () => {
     let releasePoint!: () => void;
     stub(
